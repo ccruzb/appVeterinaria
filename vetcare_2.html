@@ -1,0 +1,2236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="VetCare"/>
+  <meta name="theme-color" content="#1A3A5C"/>
+  <title>VetCare - Sistema Veterinario</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>"/>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    html{font-size:16px;}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#F0F4F8;-webkit-text-size-adjust:100%;}
+    #root{min-height:100vh;}
+    #loading{position:fixed;inset:0;background:#F0F4F8;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s;}
+    #loading.hide{opacity:0;pointer-events:none;}
+    .ld-paw{font-size:72px;margin-bottom:16px;animation:ldpulse 1.2s ease-in-out infinite;}
+    .ld-title{font-size:30px;font-weight:800;color:#1A3A5C;letter-spacing:1px;}
+    .ld-sub{font-size:13px;color:#4A6275;margin-top:6px;}
+    .ld-bar{width:160px;height:3px;background:#CBD8E4;border-radius:4px;margin-top:18px;overflow:hidden;}
+    .ld-fill{height:100%;background:#1E7A8C;border-radius:4px;animation:ldbar 1.5s ease-in-out infinite;}
+    @keyframes ldpulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.12);opacity:.75}}
+    @keyframes ldbar{0%{width:0%;margin-left:0}50%{width:60%}100%{width:0%;margin-left:100%}}
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="ld-paw">🐾</div>
+    <div class="ld-title">VetCare</div>
+    <div class="ld-sub">Sistema de Gestión Veterinaria</div>
+    <div class="ld-bar"><div class="ld-fill"></div></div>
+  </div>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+var useState=React.useState,useEffect=React.useEffect,useCallback=React.useCallback,useMemo=React.useMemo;
+// ─── SUPABASE CONFIG ─────────────────────────────────
+// Reemplaza con los valores de tu proyecto Supabase:
+var SUPA_URL = "https://qcczcyqtflvxhewvucxn.supabase.co";
+var SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFjY3pjeXF0Zmx2eGhld3Z1Y3huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NTM2NzcsImV4cCI6MjA5NjUyOTY3N30.R6qWoi6ZmWaGQ2x1j6xiE7AzCySmFfQZY0Wg77a91Pc";
+
+// Mapa de KEYS → tablas Supabase
+var KEYS = {
+  users:"vc_users", pets:"vc_pets", records:"vc_records",
+  session:"vc_session",
+  appts:"vc_appointments", notifs:"vc_notifications",
+  blocked:"vc_blocked_days", reqs:"vc_appt_requests"
+};
+
+function supaH() {
+  return { "Content-Type":"application/json","apikey":SUPA_KEY,"Authorization":"Bearer "+SUPA_KEY,"Prefer":"return=representation" };
+}
+
+// ─── MAPPERS snake_case ↔ camelCase ──────────────────────
+function mapUser(r){ if(!r)return null; return {id:r.id,role:r.role,firstName:r.first_name,lastName:r.last_name,email:r.email,password:r.password,docType:r.doc_type||"DNI",docNum:r.doc_num||"",phone:r.phone||"",blocked:r.blocked||false}; }
+function userToDb(u){ return {id:u.id,role:u.role,first_name:u.firstName||"",last_name:u.lastName||"",email:u.email,password:u.password,doc_type:u.docType||"DNI",doc_num:u.docNum||"",phone:u.phone||"",blocked:u.blocked||false}; }
+function mapPet(r){ if(!r)return null; return {id:r.id,ownerId:r.owner_id,name:r.name,species:r.species||"Perro",breed:r.breed||"",sex:r.sex||"Macho",dob:r.dob||"",weight:r.weight||"",color:r.color||"",avatar:r.avatar||"🐾",photo:r.photo||""}; }
+function petToDb(p){ return {id:p.id,owner_id:p.ownerId,name:p.name,species:p.species||"Perro",breed:p.breed||"",sex:p.sex||"Macho",dob:p.dob||"",weight:p.weight||"",color:p.color||"",avatar:p.avatar||"🐾",photo:p.photo||""}; }
+function mapRecord(r){ if(!r)return null; return {id:r.id,petId:r.pet_id,vetId:r.vet_id,date:r.date,type:r.type||"Consulta",diagnosis:r.diagnosis||"",treatment:r.treatment||"",notes:r.notes||"",nextVisit:r.next_visit||"",weight:r.weight||"",attended:r.attended,duration:r.duration,items:r.items||[]}; }
+function recordToDb(r){ return {id:r.id,pet_id:r.petId,vet_id:r.vetId,date:r.date,type:r.type||"Consulta",diagnosis:r.diagnosis||"",treatment:r.treatment||"",notes:r.notes||"",next_visit:r.nextVisit||"",weight:r.weight||"",attended:r.attended!=null?r.attended:null,duration:r.duration||null,items:r.items||[]}; }
+function mapAppt(r){ if(!r)return null; return {id:r.id,petId:r.pet_id,ownerId:r.owner_id,vetId:r.vet_id,date:r.date,time:r.time,type:r.type||"Consulta",notes:r.notes||"",status:r.status||"pending",attended:r.attended}; }
+function apptToDb(a){ return {id:a.id,pet_id:a.petId,owner_id:a.ownerId,vet_id:a.vetId,date:a.date,time:a.time,type:a.type||"Consulta",notes:a.notes||"",status:a.status||"pending",attended:a.attended!=null?a.attended:null}; }
+function mapReq(r){ if(!r)return null; return {id:r.id,petId:r.pet_id,ownerId:r.owner_id,vetId:r.vet_id,date:r.date,time:r.time,type:r.type||"Consulta",notes:r.notes||"",status:r.status||"pending",ts:r.ts||Date.now()}; }
+function reqToDb(q){ return {id:q.id,pet_id:q.petId,owner_id:q.ownerId,vet_id:q.vetId,date:q.date,time:q.time,type:q.type||"Consulta",notes:q.notes||"",status:q.status||"pending",ts:q.ts||Date.now()}; }
+function mapNotif(r){ if(!r)return null; return {id:r.id,toId:r.to_id,msg:r.msg,icon:r.icon||"🔔",actionId:r.action_id||"",read:r.read||false,ts:r.ts||Date.now()}; }
+function notifToDb(n){ return {id:n.id,to_id:n.toId,msg:n.msg,icon:n.icon||"🔔",action_id:n.actionId||"",read:n.read||false,ts:n.ts||Date.now()}; }
+function mapBlocked(r){ return {date:r.date,reason:r.reason||"No disponible"}; }
+
+// ─── SUPABASE REST HELPERS ───────────────────────────────
+async function sbAll(table){ try{ var r=await fetch(SUPA_URL+"/rest/v1/"+table+"?select=*&order=created_at.asc",{headers:supaH()}); return r.ok?await r.json():[];}catch(e){return[];} }
+async function sbUpsertRow(table,row){ try{ var r=await fetch(SUPA_URL+"/rest/v1/"+table+"?on_conflict=id",{method:"POST",headers:Object.assign({},supaH(),{"Prefer":"resolution=merge-duplicates,return=representation"}),body:JSON.stringify([row])}); return r.ok;}catch(e){return false;} }
+async function sbUpsertMany(table,rows){ try{ var r=await fetch(SUPA_URL+"/rest/v1/"+table+"?on_conflict=id",{method:"POST",headers:Object.assign({},supaH(),{"Prefer":"resolution=merge-duplicates,return=representation"}),body:JSON.stringify(rows)}); return r.ok;}catch(e){return false;} }
+async function sbPatch(table,id,data){ try{ var r=await fetch(SUPA_URL+"/rest/v1/"+table+"?id=eq."+id,{method:"PATCH",headers:supaH(),body:JSON.stringify(data)}); return r.ok;}catch(e){return false;} }
+async function sbDel(table,id){ try{ var r=await fetch(SUPA_URL+"/rest/v1/"+table+"?id=eq."+id,{method:"DELETE",headers:supaH()}); return r.ok;}catch(e){return false;} }
+async function sbDelWhere(table,col,val){ try{ var r=await fetch(SUPA_URL+"/rest/v1/"+table+"?"+col+"=eq."+encodeURIComponent(val),{method:"DELETE",headers:supaH()}); return r.ok;}catch(e){return false;} }
+
+// ─── sGet / sSet: wrappers que mantienen compatibilidad con el App ──
+async function sGet(k) {
+  try {
+    if(k===KEYS.session){ return localStorage.getItem("vc_session")||null; }
+    var rows=[];
+    if(k===KEYS.users)    { rows=await sbAll("vc_users");    return rows.map(mapUser); }
+    if(k===KEYS.pets)     { rows=await sbAll("vc_pets");     return rows.map(mapPet); }
+    if(k===KEYS.records)  { rows=await sbAll("vc_records");  return rows.map(mapRecord); }
+    if(k===KEYS.appts)    { rows=await sbAll("vc_appointments"); return rows.map(mapAppt); }
+    if(k===KEYS.reqs)     { rows=await sbAll("vc_appt_requests"); return rows.map(mapReq); }
+    if(k===KEYS.notifs)   { rows=await sbAll("vc_notifications"); return rows.map(mapNotif); }
+    if(k===KEYS.blocked)  { rows=await sbAll("vc_blocked_days"); return rows.map(mapBlocked); }
+    return null;
+  } catch(e){ return null; }
+}
+async function sSet(k,v) {
+  try {
+    if(k===KEYS.session){ if(v===null||v==="null") localStorage.removeItem("vc_session"); else localStorage.setItem("vc_session",v); return; }
+    if(!Array.isArray(v)) return;
+    if(k===KEYS.users)   { await sbUpsertMany("vc_users", v.map(userToDb)); return; }
+    if(k===KEYS.pets)    { await sbUpsertMany("vc_pets", v.map(petToDb)); return; }
+    if(k===KEYS.records) { await sbUpsertMany("vc_records", v.map(recordToDb)); return; }
+    if(k===KEYS.appts)   { await sbUpsertMany("vc_appointments", v.map(apptToDb)); return; }
+    if(k===KEYS.reqs)    { await sbUpsertMany("vc_appt_requests", v.map(reqToDb)); return; }
+    if(k===KEYS.notifs)  { await sbUpsertMany("vc_notifications", v.map(notifToDb)); return; }
+    if(k===KEYS.blocked) { await sbUpsertMany("vc_blocked_days", v.map(mapBlocked)); return; }
+  } catch(e){}
+}
+
+
+const BREEDS = {
+  Perro:["Beagle","Border Collie","Boxer","Bulldog Francés","Caniche","Chihuahua","Dálmata","Doberman","Golden Retriever","Husky Siberiano","Labrador Retriever","Mestizo","Pastor Alemán","Rottweiler","Shih Tzu","Yorkshire Terrier","Gran Danés","Pomerania"],
+  Gato:["Angora Turco","Azul Ruso","Bengalí","British Shorthair","Maine Coon","Mestizo","Persa","Ragdoll","Scottish Fold","Siamés","Siberiano"],
+  Ave:["Agapornis","Cacatúa","Canario","Guacamayo","Loro","Ninfa","Periquito"],
+  Conejo:["Angora","Belier","Mini Rex","New Zealand","Rex"],
+  Reptil:["Bearded Dragon","Gecko Leopardo","Iguana Verde","Tortuga de Tierra"],
+  Pez:["Betta","Goldfish","Guppy","Neon Tetra"],
+  Otro:["Cobayo","Erizo","Hurón","Rata"]
+};;
+
+const SEED_USERS = [
+  { id:"u0", role:"admin", firstName:"Admin",    lastName:"VetCare",   email:"admin@vetcare.com",  password:"admin2025",   docType:"DNI", docNum:"00000001", blocked:false, phone:"" },
+  { id:"u1", role:"vet",   firstName:"German",   lastName:"Cabrera",   email:"german@clinica.com", password:"vetcare2025", docType:"DNI", docNum:"12345678", blocked:false, phone:"" },
+  { id:"u2", role:"owner", firstName:"Carlos",   lastName:"Ruiz",      email:"carlos@mail.com",    password:"1234",        docType:"DNI", docNum:"87654321", blocked:false, phone:"999111222" },
+  { id:"u3", role:"owner", firstName:"Ana",      lastName:"Torres",    email:"ana@mail.com",       password:"1234",        docType:"DNI", docNum:"11223344", blocked:false, phone:"999333444" },
+  { id:"u4", role:"owner", firstName:"Miguel",   lastName:"Fernandez", email:"miguel@mail.com",    password:"1234",        docType:"DNI", docNum:"22334455", blocked:false, phone:"999222333" },
+  { id:"u5", role:"owner", firstName:"Lucia",    lastName:"Gomez",     email:"lucia@mail.com",     password:"1234",        docType:"DNI", docNum:"33445566", blocked:false, phone:"999333555" },
+  { id:"u6", role:"owner", firstName:"Roberto",  lastName:"Sanchez",   email:"roberto@mail.com",   password:"1234",        docType:"DNI", docNum:"44556677", blocked:false, phone:"999444666" },
+  { id:"u7", role:"owner", firstName:"Patricia", lastName:"Lopez",     email:"patricia@mail.com",  password:"1234",        docType:"DNI", docNum:"55667788", blocked:false, phone:"999555777" },
+  { id:"u8", role:"owner", firstName:"Jorge",    lastName:"Martinez",  email:"jorge@mail.com",     password:"1234",        docType:"DNI", docNum:"66778899", blocked:false, phone:"999666888" },
+  { id:"u9", role:"owner", firstName:"Sofia",    lastName:"Diaz",      email:"sofia@mail.com",     password:"1234",        docType:"DNI", docNum:"77889900", blocked:false, phone:"999777999" },
+];
+const SEED_PETS = [
+  { id:"p1", ownerId:"u2", name:"Mochi",    species:"Gato",  breed:"Siames",  sex:"Hembra",           dob:"2020-03-15", weight:"4.2",  color:"Crema y marron", avatar:"🐱", photo:"" },
+  { id:"p2", ownerId:"u2", name:"Rocky",    species:"Perro", breed:"Labrador Retriever", sex:"Macho",dob:"2018-07-22", weight:"28.5",color:"Amarillo",        avatar:"🐶", photo:"" },
+  { id:"p3", ownerId:"u3", name:"Luna",     species:"Perro", breed:"Caniche",  sex:"Hembra",          dob:"2021-11-05", weight:"8.1", color:"Blanco",          avatar:"🐩", photo:"" },
+  { id:"p4", ownerId:"u4", name:"Max",      species:"Perro", breed:"Golden Retriever",  sex:"Macho", dob:"2019-05-10", weight:"32.0",color:"Dorado",          avatar:"🐶", photo:"" },
+  { id:"p5", ownerId:"u5", name:"Coco",     species:"Gato",  breed:"Persa",   sex:"Hembra",            dob:"2022-02-14", weight:"3.8", color:"Blanco",          avatar:"🐱", photo:"" },
+  { id:"p6", ownerId:"u6", name:"Bruno",    species:"Perro", breed:"Pastor Aleman",   sex:"Macho",    dob:"2017-09-01", weight:"38.0",color:"Negro y marron",  avatar:"🐶", photo:"" },
+  { id:"p7", ownerId:"u7", name:"Nala",     species:"Gato",  breed:"British Shorthair", sex:"Hembra",dob:"2021-06-20", weight:"4.5", color:"Gris",            avatar:"🐱", photo:"" },
+  { id:"p8", ownerId:"u8", name:"Toby",     species:"Perro", breed:"Beagle",  sex:"Macho",           dob:"2020-11-30", weight:"12.5",color:"Tricolor",        avatar:"🐶", photo:"" },
+  { id:"p9", ownerId:"u9", name:"Princesa", species:"Gato",  breed:"Ragdoll", sex:"Hembra",          dob:"2023-01-08", weight:"3.2", color:"Gris y blanco",   avatar:"🐱", photo:"" },
+];
+const SEED_RECORDS = [
+  { id:"r1", petId:"p1", vetId:"u1", date:"2024-10-12", type:"Consulta",  diagnosis:"Dermatitis leve",         treatment:"Crema hidrocortisona 7 dias", notes:"Prurito dorsal",    nextVisit:"2026-06-15", weight:"4.1",  attended:true,  duration:20, items:[] },
+  { id:"r2", petId:"p1", vetId:"u1", date:"2025-01-08", type:"Vacunación",diagnosis:"Control anual",           treatment:"Vacuna triple felina",        notes:"Sin reacciones",    nextVisit:"2026-06-20", weight:"4.2",  attended:true,  duration:15, items:[] },
+  { id:"r3", petId:"p2", vetId:"u1", date:"2025-03-20", type:"Cirugía",   diagnosis:"Displasia de cadera leve",treatment:"Fisioterapia + meloxicam",    notes:"Buena recuperacion",nextVisit:"2026-06-25", weight:"28.5", attended:true,  duration:45, items:[] },
+  { id:"r4", petId:"p3", vetId:"u1", date:"2025-05-02", type:"Consulta",  diagnosis:"Otitis externa",          treatment:"Gotas Otomax 10 dias",        notes:"Limpieza auditiva", nextVisit:"2026-07-01", weight:"8.0",  attended:false, duration:null,items:[] },
+];
+const SEED_APPTS = [
+  { id:"a1", petId:"p1", ownerId:"u2", vetId:"u1", date:"2026-06-15", time:"09:00", type:"Vacunación", notes:"Control anual", status:"confirmed", attended:null },
+  { id:"a2", petId:"p2", ownerId:"u2", vetId:"u1", date:"2026-06-20", time:"10:30", type:"Control", notes:"Revisión displasia", status:"pending", attended:null },
+  { id:"a3", petId:"p3", ownerId:"u3", vetId:"u1", date:"2026-06-25", time:"11:00", type:"Consulta", notes:"Seguimiento otitis", status:"pending", attended:null },
+  { id:"da0", petId:"p4", ownerId:"u4", vetId:"u1", date:"2026-07-08", time:"08:00", type:"Consulta", notes:"Control rutina", status:"confirmed", attended:null },
+  { id:"da1", petId:"p5", ownerId:"u5", vetId:"u1", date:"2026-07-09", time:"09:30", type:"Vacunación", notes:"Revisión general", status:"confirmed", attended:null },
+  { id:"da2", petId:"p6", ownerId:"u6", vetId:"u1", date:"2026-07-10", time:"10:00", type:"Control", notes:"Seguimiento", status:"confirmed", attended:null },
+  { id:"da3", petId:"p7", ownerId:"u7", vetId:"u1", date:"2026-07-11", time:"11:30", type:"Consulta", notes:"Rutina", status:"confirmed", attended:null },
+  { id:"da4", petId:"p8", ownerId:"u8", vetId:"u1", date:"2026-07-12", time:"12:00", type:"Control", notes:"Seguimiento", status:"confirmed", attended:null },
+  { id:"da5", petId:"p9", ownerId:"u9", vetId:"u1", date:"2026-07-13", time:"08:30", type:"Consulta", notes:"Control rutina", status:"confirmed", attended:null },
+  { id:"da6", petId:"p1", ownerId:"u2", vetId:"u1", date:"2026-07-14", time:"09:00", type:"Vacunación", notes:"Anual", status:"confirmed", attended:null }
+];
+const SEED_REQS = [
+  { id:"rq0", petId:"p1", ownerId:"u2", date:"2026-07-15", time:"09:00", type:"Consulta",  notes:"Revisión rutina",    status:"pending", ts:1749000000 },
+  { id:"rq1", petId:"p2", ownerId:"u3", date:"2026-07-15", time:"10:00", type:"Control",   notes:"Seguimiento",       status:"pending", ts:1749001000 },
+  { id:"rq2", petId:"p3", ownerId:"u4", date:"2026-07-16", time:"09:00", type:"Vacunación",notes:"Vacuna anual",       status:"pending", ts:1749002000 },
+  { id:"rq3", petId:"p4", ownerId:"u5", date:"2026-07-16", time:"10:00", type:"Consulta",  notes:"Primera visita",    status:"pending", ts:1749003000 },
+  { id:"rq4", petId:"p5", ownerId:"u6", date:"2026-07-17", time:"08:00", type:"Control",   notes:"Rutina",            status:"pending", ts:1749004000 },
+  { id:"rq5", petId:"p6", ownerId:"u7", date:"2026-07-17", time:"09:30", type:"Consulta",  notes:"Revisión",          status:"pending", ts:1749005000 },
+  { id:"rq6", petId:"p7", ownerId:"u8", date:"2026-07-18", time:"10:00", type:"Vacunación",notes:"Control anual",      status:"pending", ts:1749006000 },
+  { id:"rq7", petId:"p8", ownerId:"u9", date:"2026-07-18", time:"11:00", type:"Consulta",  notes:"Primer control",    status:"pending", ts:1749007000 }
+];
+
+function fullName(u) { if(!u) return "—"; if(u.firstName && u.lastName) return u.firstName+" "+u.lastName; return u.firstName||u.lastName||u.name||"—"; }
+function fmtDate(iso) { if(!iso) return "—"; var p=iso.split("-"); return p[2]+"-"+p[1]+"-"+p[0]; }
+function today() { return new Date().toISOString().slice(0,10); }
+function genId() { return Math.random().toString(36).slice(2,10); }
+function toBase64(f) { return new Promise(function(r,j){ var fr=new FileReader(); fr.onload=function(){r(fr.result);}; fr.onerror=j; fr.readAsDataURL(f); }); }
+function calcAge(dob) {
+  if(!dob) return null;
+  var mo=(new Date().getFullYear()-new Date(dob).getFullYear())*12+new Date().getMonth()-new Date(dob).getMonth();
+  if(mo<1) return "recién nacido";
+  if(mo<12) return mo+" mes"+(mo>1?"es":"");
+  var y=Math.floor(mo/12), m=mo%12;
+  return m>0 ? y+" año"+(y>1?"s":"")+" y "+m+" mes"+(m>1?"es":"") : y+" año"+(y>1?"s":"");
+}
+function sanitizePhone(v) { return v.replace(/\D/g,"").slice(0,9); }
+function validateDoc(type,num) {
+  if(!num) return "Numero obligatorio.";
+  if(type==="DNI") { if(!/^\d{8}$/.test(num)) return "DNI: 8 digitos exactos."; }
+  else { if(!/^[A-Z]\d{8}$/.test(num)) return "Formato: letra + 8 digitos."; }
+  return "";
+}
+var TIME_SLOTS = [];
+for(var _h=8;_h<19;_h++) { for(var _m=0;_m<60;_m+=30) { TIME_SLOTS.push((_h<10?"0":"")+_h+":"+(_m===0?"00":"30")); } }
+
+function useDark() {
+  var mq = typeof window!=="undefined" ? window.matchMedia("(prefers-color-scheme: dark)") : {matches:false};
+  var d=useState(mq.matches);
+  var dark=d[0], setDark=d[1];
+  useEffect(function(){
+    var handler=function(e){ setDark(e.matches); };
+    mq.addEventListener("change",handler);
+    return function(){ mq.removeEventListener("change",handler); };
+  },[]);
+  return dark;
+}
+function useIsMobile() {
+  var s=useState(window.innerWidth<720);
+  var mob=s[0], setMob=s[1];
+  useEffect(function(){
+    var h=function(){ setMob(window.innerWidth<720); };
+    window.addEventListener("resize",h);
+    return function(){ window.removeEventListener("resize",h); };
+  },[]);
+  return mob;
+}
+function useToast() {
+  var s=useState([]); var toasts=s[0]; var setToasts=s[1];
+  var push=useCallback(function(msg,type){
+    type=type||"success";
+    var id=genId();
+    setToasts(function(t){ return t.concat([{id:id,msg:msg,type:type}]); });
+    setTimeout(function(){ setToasts(function(t){ return t.filter(function(x){ return x.id!==id; }); }); },3800);
+  },[]);
+  return {toasts:toasts,push:push};
+}
+
+function palette(dark) {
+  return {
+    // Base backgrounds
+    cream:dark?"#111827":"#F0F4F8",         // main bg: dark navy / light steel-blue
+    peach:dark?"#1E2A3A":"#E2EAF4",         // card secondary bg
+    tan:dark?"#2D4A6B":"#B8CFE8",           // accent/border highlight
+
+    // Primary action color (teal/navy)
+    brown:dark?"#4DB8C8":"#1E7A8C",         // primary buttons, links
+    brownDark:dark?"#7DD4E0":"#145A6A",     // headings, dark text
+
+    // Success (emerald green)
+    green:dark?"#34C98A":"#0D9B6A",
+    greenLight:dark?"#0A2E1E":"#D1F5E8",
+
+    // Info (sky blue)
+    blue:dark?"#60B4E8":"#2E86C1",
+    blueLight:dark?"#0A1D2E":"#D6EAF8",
+
+    // Danger (coral red)
+    red:dark?"#F07070":"#E05252",
+    redLight:dark?"#2E1010":"#FDEAEA",
+
+    // Warning (amber)
+    yellow:dark?"#F5C842":"#D4900A",
+    yellowLight:dark?"#2A1E00":"#FFF3CD",
+
+    // Accent (violet)
+    purple:dark?"#A880E0":"#7B4FCC",
+    purpleLight:dark?"#1A1030":"#EDE6FA",
+
+    // Text
+    text:dark?"#E8F0F8":"#1A2B3C",
+    textMid:dark?"#8AABB8":"#4A6275",
+    textLight:dark?"#4A6882":"#8BA4B5",
+
+    // Surfaces
+    surface:dark?"#1A2535":"#FFFFFF",
+    border:dark?"#2A3F58":"#CBD8E4",
+
+    // Nav (dark slate)
+    topbar:dark?"#0D1929":"#1A3A5C",
+    sidebar:dark?"#0D1929":"#1A3A5C",
+    navIcon:dark?"#7DD4E0":"#FFFFFF",
+    navIconDim:dark?"#4A6882":"rgba(255,255,255,0.55)",
+  };
+}
+var buildCss=function(C){ return "@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap');\n*{box-sizing:border-box;margin:0;padding:0;}html{font-size:16px;}body{font-family:'Nunito',sans-serif;background:"+C.cream+";color:"+C.text+";-webkit-text-size-adjust:100%;}\n::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:"+C.peach+";}::-webkit-scrollbar-thumb{background:"+C.tan+";border-radius:3px;}\ninput,select,textarea{font-family:'Nunito',sans-serif;border:1.5px solid "+C.border+";border-radius:10px;padding:11px 14px;background:"+C.surface+";color:"+C.text+";width:100%;font-size:16px;outline:none;transition:border-color .2s;-webkit-appearance:none;appearance:none;}\ninput:focus,select:focus,textarea:focus{border-color:"+C.brown+";box-shadow:0 0 0 3px "+C.brown+"33;}\ninput.err,select.err,textarea.err{border-color:"+C.red+";}\nbutton{font-family:'Nunito',sans-serif;cursor:pointer;border:none;border-radius:10px;font-weight:700;transition:all .18s;-webkit-tap-highlight-color:transparent;}\nbutton:active{transform:scale(.97);}\nlabel{font-size:13px;font-weight:700;color:"+C.brownDark+";display:block;margin-bottom:5px;}\n@keyframes slideUp{from{transform:translateY(24px);opacity:0;}to{transform:translateY(0);opacity:1;}}\n@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}"; };
+
+function simEmail(email,subject,push){ push("Email -> "+(email||"?")+" : "+subject,"success"); }
+function simWA(phone,msg,push){ if(phone) push("WhatsApp -> "+phone+" : "+msg.slice(0,40),"success"); }
+function byId(arr,id){ for(var _i=0;_i<arr.length;_i++){if(arr[_i].id===id)return arr[_i];} return null; }
+var sOverflow={overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"};
+function byField(arr,field,val){ for(var _i=0;_i<arr.length;_i++){if(arr[_i][field]===val)return arr[_i];} return null; }
+function Btn(props) {
+  var children=props.children, onClick=props.onClick, variant=props.variant||"primary";
+  var small=props.small, disabled=props.disabled, full=props.full, C=props.C, xStyle=props.style||{};
+  var styles={
+    primary:{background:C.brown,color:"#fff"},
+    outline:{background:"transparent",color:C.brown,border:"2px solid "+C.brown},
+    ghost:{background:C.peach,color:C.brownDark},
+    danger:{background:C.red,color:"#fff"},
+    success:{background:C.green,color:"#fff"},
+    warning:{background:C.yellow,color:"#fff"},
+    purple:{background:C.purple,color:"#fff"}
+  };
+  var base=styles[variant]||styles.primary;
+  var pad=small?"8px 14px":"12px 22px";
+  var fz=small?12:14;
+  return (
+    <button disabled={disabled} onClick={onClick} style={Object.assign({},base,{padding:pad,fontSize:fz,opacity:disabled?0.5:1,width:full?"100%":undefined,borderRadius:10},xStyle)}>{children}</button>
+  );
+}
+function Card(props) {
+  var C=props.C, xStyle=props.style||{};
+  return (
+    <div onClick={props.onClick} style={Object.assign({background:C.surface,borderRadius:16,border:"1px solid "+C.border,padding:20},xStyle)}>{props.children}</div>
+  );
+}
+function Field(props) {
+  var C=props.C;
+  return (
+    <div style={{marginBottom:14}}>
+      <label style={{color:C.brownDark}}>{props.label}</label>
+      {props.children}
+      {props.error&&<div style={{color:C.red,fontSize:12,marginTop:4,fontWeight:600}}>{"⚠ "+props.error}</div>}
+    </div>
+  );
+}
+function StatCard(props) {
+  var C=props.C;
+  return (
+    <div style={{background:C.surface,borderRadius:16,border:"1px solid "+C.border,padding:16,display:"flex",alignItems:"center",gap:14}}>
+      <div style={{width:46,height:46,borderRadius:14,background:props.color+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{props.icon}</div>
+      <div>
+        <div style={{fontSize:22,fontWeight:800,color:props.color}}>{props.value}</div>
+        <div style={{fontSize:12,color:C.textMid}}>{props.label}</div>
+      </div>
+    </div>
+  );
+}
+function Modal(props) {
+  var C=props.C;
+  function handleBg(e){ if(e.target===e.currentTarget) props.onClose(); }
+  return (
+    <div style={{position:"fixed",inset:0,background:"#00000088",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={handleBg}>
+      <div style={{background:C.cream,borderRadius:"20px 20px 0 0",width:"100%",maxWidth:580,maxHeight:"93vh",overflowY:"auto",padding:"18px 20px 36px",boxShadow:"0 -8px 40px #00000044",animation:"slideUp .25s ease"}}>
+        <div style={{width:40,height:4,background:C.border,borderRadius:4,margin:"0 auto 16px"}}/>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <h3 style={{fontFamily:"'Playfair Display', serif",fontSize:19,color:C.brownDark}}>{props.title}</h3>
+          <button onClick={props.onClose} style={{background:C.peach,border:"none",borderRadius:50,width:32,height:32,fontSize:18,cursor:"pointer",color:C.brown}}>x</button>
+        </div>
+        {props.children}
+      </div>
+    </div>
+  );
+}
+function Badge(props) {
+  var map={"Consulta":{bg:"#E8F4F8",c:"#4A9AB5",i:"🩺"},"Vacunación":{bg:"#EAF4EB",c:"#4A8F4E",i:"💉"},"Cirugía":{bg:"#FDEAEA",c:"#C05050",i:"🔬"},"Urgencia":{bg:"#FFF3E0",c:"#B05A00",i:"🚨"},"Control":{bg:"#F9E4CC",c:"#8B5230",i:"📋"}};
+  var s=map[props.type]||map["Control"];
+  return <span style={{background:s.bg,color:s.c,borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>{s.i+" "+props.type}</span>;
+}
+function StatusBadge(props) {
+  var C=props.C;
+  var m={confirmed:{bg:C.greenLight,c:C.green,l:"✅ Confirmada"},pending:{bg:C.yellowLight,c:C.yellow,l:"⏳ Pendiente"},cancelled:{bg:C.redLight,c:C.red,l:"❌ Cancelada"},attended:{bg:C.greenLight,c:C.green,l:"✔ Atendida"},absent:{bg:C.redLight,c:C.red,l:"No asistió"},requested:{bg:C.purpleLight,c:C.purple,l:"Solicitada"}};
+  var s=m[props.status]||m.pending;
+  return <span style={{background:s.bg,color:s.c,borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>{s.l}</span>;
+}
+function PetAvatar(props) {
+  var size=props.size||56, C=props.C, r=size<80?12:18;
+  if(props.photo) return <img src={props.photo} alt="pet" style={{width:size,height:size,borderRadius:r,objectFit:"cover",flexShrink:0,border:"2px solid "+C.border}}/>;
+  return <div style={{width:size,height:size,borderRadius:r,background:C.tan,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.48,flexShrink:0,border:"2px solid "+C.border}}>{props.avatar||"🐾"}</div>;
+}
+function Toast(props) {
+  var C=props.C;
+  return (
+    <div style={{position:"fixed",top:70,right:16,zIndex:500,display:"flex",flexDirection:"column",gap:8,maxWidth:300,pointerEvents:"none"}}>
+      {props.toasts.map(function(t){
+        var bg=t.type==="error"?C.redLight:t.type==="warning"?C.yellowLight:C.greenLight;
+        var cl=t.type==="error"?C.red:t.type==="warning"?C.yellow:C.green;
+        return <div key={t.id} style={{background:bg,border:"1px solid "+cl,color:cl,borderRadius:12,padding:"10px 14px",fontSize:13,fontWeight:600,animation:"slideUp .2s ease"}}>{t.msg}</div>;
+      })}
+    </div>
+  );
+}
+function PasswordField(props) {
+  var C=props.C;
+  var s=useState(false); var show=s[0]; var setShow=s[1];
+  return (
+    <Field label={props.label} error={props.error} C={C}>
+      <div style={{position:"relative"}}>
+        <input type={show?"text":"password"} placeholder="..." value={props.value} onChange={props.onChange} className={props.error?"err":""} style={{paddingRight:44}}/>
+        <button type="button" onClick={function(){setShow(function(v){return !v;});}} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:16,color:C.textMid,padding:4}}>{show?"🙈":"👁"}</button>
+      </div>
+    </Field>
+  );
+}
+function BreedSelect(props) {
+  var list=BREEDS[props.species]||BREEDS.Otro;
+  return (
+    <div>
+      <input value={props.value} onChange={function(e){props.onChange(e.target.value);}} placeholder="Buscar raza..." list={"bl-"+props.species}/>
+      <datalist id={"bl-"+props.species}>{list.map(function(b){return <option key={b} value={b}/>;})}</datalist>
+    </div>
+  );
+}
+function NotifBell(props) {
+  var C=props.C;
+  var s1=useState(false); var open=s1[0]; var setOpen=s1[1];
+  var mine=useMemo(function(){ return props.notifications.filter(function(n){return n.toId===props.userId;}).sort(function(a,b){return b.ts-a.ts;}); },[props.notifications,props.userId]);
+  var unread=useMemo(function(){ return mine.filter(function(n){return !n.read;}).length; },[mine]);
+  function handleClick(n){ props.onMarkRead([n.id]); if(n.actionId){ props.onNotifAction(n); setOpen(false); } }
+  return (
+    <div style={{position:"relative"}}>
+      <button onClick={function(){setOpen(function(o){return !o;});}} style={{background:"transparent",border:"none",fontSize:22,position:"relative",padding:4,color:C.navIcon}}>
+        {"🔔"}
+        {unread>0&&<span style={{position:"absolute",top:-2,right:-2,background:C.red,color:"#fff",borderRadius:50,width:18,height:18,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{unread>9?"9+":unread}</span>}
+      </button>
+      {open&&<div style={{position:"fixed",inset:0,zIndex:198}} onClick={function(){setOpen(false);}}/>}
+      {open&&(
+        <div style={{position:"absolute",right:0,top:40,background:C.surface,border:"1px solid "+C.border,borderRadius:14,width:300,maxHeight:400,overflowY:"auto",zIndex:199,boxShadow:"0 8px 32px #0003",animation:"fadeIn .15s ease"}}>
+          <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontWeight:800,fontSize:14,color:C.brownDark}}>Notificaciones</span>
+            {unread>0&&<button onClick={function(){props.onMarkRead(mine.filter(function(n){return !n.read;}).map(function(n){return n.id;}));}} style={{background:"none",border:"none",color:C.blue,fontSize:12,fontWeight:700,cursor:"pointer"}}>Leer todas</button>}
+          </div>
+          {mine.length===0?<p style={{padding:20,textAlign:"center",color:C.textLight,fontSize:13}}>Sin notificaciones</p>
+            :mine.slice(0,25).map(function(n){
+              return (
+                <div key={n.id} onClick={function(){handleClick(n);}} style={{padding:"10px 14px",borderBottom:"1px solid "+C.border,background:n.read?"transparent":C.peach,cursor:"pointer"}}>
+                  <div style={{fontSize:13,color:C.text,fontWeight:n.read?400:700}}>{n.icon+" "+n.msg}</div>
+                  {n.actionId&&!n.read&&<div style={{fontSize:11,color:C.blue,fontWeight:700,marginTop:2}}>Toca para responder</div>}
+                  <div style={{fontSize:11,color:C.textLight,marginTop:2}}>{new Date(n.ts).toLocaleDateString("es-PE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
+                </div>
+              );
+            })
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NavIcon(props) {
+  var icon=props.icon, active=props.active, C=props.C;
+  if(icon==="🐾") {
+    return (
+      <svg width="22" height="22" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="12" cy="18" rx="6" ry="9" fill={active?"#fff":"rgba(255,255,255,0.7)"}/>
+        <ellipse cx="28" cy="10" rx="6" ry="9" fill={active?"#fff":"rgba(255,255,255,0.7)"}/>
+        <ellipse cx="44" cy="10" rx="6" ry="9" fill={active?"#fff":"rgba(255,255,255,0.7)"}/>
+        <ellipse cx="56" cy="18" rx="6" ry="9" fill={active?"#fff":"rgba(255,255,255,0.7)"}/>
+        <path d="M32 24 C18 24 10 34 12 46 C14 56 22 58 32 58 C42 58 50 56 52 46 C54 34 46 24 32 24Z" fill={active?"#fff":"rgba(255,255,255,0.7)"}/>
+      </svg>
+    );
+  }
+  return <span style={{fontSize:18}}>{icon}</span>;
+}
+var sFlexCenter={display:"flex",alignItems:"center"};
+var sFlexBetween={display:"flex",alignItems:"center",justifyContent:"space-between"};
+function sBtnIcon(C,color,bg,size){
+  size=size||32;
+  return {width:size,height:size,borderRadius:10,background:bg,border:"1px solid "+color,color:color,fontSize:size>32?14:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0};
+}
+
+function Shell(props) {
+  var user=props.user, tab=props.tab, setTab=props.setTab, onLogout=props.onLogout;
+  var notifications=props.notifications, onMarkRead=props.onMarkRead, onNotifAction=props.onNotifAction, C=props.C;
+  var isMobile=useIsMobile();
+  var isVet=user.role==="vet", isAdmin=user.role==="admin";
+  var vetTabs=[{id:"dashboard",icon:"📊",label:"Dashboard"},{id:"pets",icon:"🐾",label:"Pacientes"},{id:"records",icon:"📋",label:"Historias"},{id:"calendar",icon:"📅",label:"Calendario"}];
+  var ownerTabs=[{id:"mypets",icon:"🐾",label:"Mascotas"},{id:"history",icon:"📋",label:"Historial"},{id:"calendar",icon:"📅",label:"Citas"}];
+  var adminTabs=[{id:"dashboard",icon:"📊",label:"Dashboard"},{id:"users",icon:"👥",label:"Usuarios"},{id:"calendar",icon:"📅",label:"Calendario"},{id:"blocked",icon:"🚫",label:"Bloqueados"}];
+  var tabs=isAdmin?adminTabs:isVet?vetTabs:ownerTabs;
+  var name=fullName(user);
+  if(isMobile) return (
+    <div style={{display:"flex",flexDirection:"column",minHeight:"100vh",background:C.cream}}>
+      <div style={{background:C.topbar,padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:50}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:20,background:C.tan,borderRadius:8,padding:"3px 7px"}}>🐾</span>
+          <span style={{fontFamily:"'Playfair Display',serif",color:C.navIcon,fontSize:17}}>VetCare</span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <NotifBell notifications={notifications} userId={user.id} onMarkRead={onMarkRead} onNotifAction={onNotifAction} C={C}/>
+          <span style={{color:C.tan,fontSize:12,fontWeight:600,maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name.split(" ")[0]}</span>
+          <button onClick={onLogout} style={{background:C.tan+"33",border:"1px solid "+C.tan+"44",borderRadius:8,color:C.navIcon,fontSize:12,padding:"6px 10px",fontWeight:700}}>Salir</button>
+        </div>
+      </div>
+      <div style={{flex:1,padding:"18px 14px",overflowY:"auto"}}>{props.children}</div>
+      <div style={{background:C.sidebar,display:"flex",borderTop:"1px solid "+C.tan+"22",position:"sticky",bottom:0,zIndex:50}}>
+        {tabs.map(function(t){
+          var active=tab===t.id;
+          return <button key={t.id} onClick={function(){setTab(t.id);}} style={{flex:1,padding:"8px 4px 10px",background:"transparent",border:"none",color:active?C.navIcon:C.navIconDim,display:"flex",flexDirection:"column",alignItems:"center",gap:2,fontSize:9,fontWeight:700,borderTop:active?"2px solid "+C.tan:"2px solid transparent"}}><NavIcon icon={t.icon} active={active} C={C}/>{t.label}</button>;
+        })}
+      </div>
+    </div>
+  );
+  return (
+    <div style={{display:"flex",minHeight:"100vh"}}>
+      <div style={{width:220,background:C.sidebar,display:"flex",flexDirection:"column",padding:"24px 14px",position:"fixed",top:0,left:0,bottom:0,zIndex:10}}>
+        <div style={{textAlign:"center",marginBottom:24}}>
+          <div style={{width:48,height:48,borderRadius:14,background:C.tan,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,margin:"0 auto 6px"}}>🐾</div>
+          <div style={{fontFamily:"'Playfair Display',serif",color:C.navIcon,fontSize:19}}>VetCare</div>
+          <div style={{color:C.tan,fontSize:10,marginTop:1}}>{isAdmin?"Panel Admin":isVet?"Panel Veterinario":"Portal Dueños"}</div>
+        </div>
+        <nav style={{flex:1}}>
+          {tabs.map(function(t){
+            var active=tab===t.id;
+            return <button key={t.id} onClick={function(){setTab(t.id);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"11px 12px",marginBottom:4,borderRadius:12,background:active?C.tan+"44":"transparent",border:active?"1px solid "+C.tan+"55":"1px solid transparent",color:active?C.navIcon:C.navIconDim,fontWeight:700,fontSize:13,textAlign:"left"}}><NavIcon icon={t.icon} active={active} C={C}/>{t.label}</button>;
+          })}
+        </nav>
+        <div style={{borderTop:"1px solid "+C.tan+"33",paddingTop:14}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{color:C.tan,fontSize:12,fontWeight:600,...sOverflow,flex:1}}>{name}</div>
+            <NotifBell notifications={notifications} userId={user.id} onMarkRead={onMarkRead} onNotifAction={onNotifAction} C={C}/>
+          </div>
+          <Btn onClick={onLogout} variant="outline" small={true} full={true} C={C} style={{borderColor:C.tan+"55",color:C.navIconDim}}>Salir</Btn>
+        </div>
+      </div>
+      <div style={{marginLeft:220,flex:1,padding:"26px 26px",background:C.cream,minHeight:"100vh"}}>{props.children}</div>
+    </div>
+  );
+}
+function AuthScreen(props) {
+  var onLogin=props.onLogin, C=props.C;
+  var s0=useState("login"); var mode=s0[0]; var setMode=s0[1];
+  var s1=useState(""); var firstName=s1[0]; var setFirstName=s1[1];
+  var s2=useState(""); var lastName=s2[0]; var setLastName=s2[1];
+  var s3=useState(""); var email=s3[0]; var setEmail=s3[1];
+  var s4=useState(""); var pass=s4[0]; var setPass=s4[1];
+  var s5=useState("owner"); var role=s5[0]; var setRole=s5[1];
+  var s6=useState("DNI"); var docType=s6[0]; var setDocType=s6[1];
+  var s7=useState(""); var docNum=s7[0]; var setDocNum=s7[1];
+  var s8=useState(""); var phone=s8[0]; var setPhone=s8[1];
+  var s9=useState({}); var errors=s9[0]; var setErrors=s9[1];
+  var s10=useState(false); var loading=s10[0]; var setLoading=s10[1];
+  function clrErr(k){ setErrors(function(e){ var n=Object.assign({},e); n[k]=""; return n; }); }
+  function handleDocNum(v){
+    if(docType==="DNI"){ setDocNum(v.replace(/\D/g,"").slice(0,8)); }
+    else { var u=v.toUpperCase(); if(/^[A-Z]?\d*$/.test(u)) setDocNum(u.slice(0,9)); }
+    clrErr("docNum");
+  }
+  function validate(){
+    var e={};
+    if(mode==="register"){
+      if(!firstName.trim()) e.firstName="Nombre obligatorio.";
+      if(!lastName.trim()) e.lastName="Apellido obligatorio.";
+      var de=validateDoc(docType,docNum); if(de) e.docNum=de;
+    }
+    if(!email.trim()) e.email="Email obligatorio.";
+    else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email="Email no válido.";
+    if(!pass) e.pass="Contraseña obligatoria.";
+    else if(mode==="register"&&pass.length<4) e.pass="Mínimo 4 caracteres.";
+    return e;
+  }
+  async function handle(){
+    var e=validate(); if(Object.keys(e).length){setErrors(e);return;} setLoading(true);
+    var stored=await sGet(KEYS.users);
+    var users=stored||SEED_USERS;
+    if(mode==="login"){
+      var u=null;
+      for(var i=0;i<users.length;i++){ if(users[i].email===email&&users[i].password===pass){u=users[i];break;} }
+      if(!u){setErrors({pass:"Email o contrasena incorrectos."});setLoading(false);return;}
+      if(u.blocked){setErrors({pass:"Cuenta bloqueada."});setLoading(false);return;}
+      await sSet(KEYS.session,u.id); onLogin(u,users);
+    } else {
+      var exists=false;
+      for(var j=0;j<users.length;j++){ if(users[j].email===email){exists=true;break;} }
+      if(exists){setErrors({email:"Email ya registrado."});setLoading(false);return;}
+      var nu={id:"u"+genId(),role:role,firstName:firstName.trim(),lastName:lastName.trim(),email:email.trim(),password:pass,docType:docType,docNum:docNum,phone:phone.trim(),blocked:false};
+      var nl=users.concat([nu]);
+      await sSet(KEYS.users,nl); await sSet(KEYS.session,nu.id); onLogin(nu,nl);
+    }
+    setLoading(false);
+  }
+  return (
+    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,"+C.peach+" 0%,"+C.cream+" 60%)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{width:"100%",maxWidth:440}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{fontSize:72,marginBottom:8,lineHeight:1}}>🐾</div>
+          <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:30,color:C.brownDark}}>VetCare</h1>
+          <p style={{color:C.textMid,fontSize:14,marginTop:4}}>Sistema de Gestión Veterinaria</p>
+        </div>
+        <div style={{background:C.surface,borderRadius:16,border:"1px solid "+C.border,padding:24}}>
+          <div style={{display:"flex",marginBottom:20,background:C.peach,borderRadius:10,padding:4}}>
+            {["login","register"].map(function(m){
+              return <button key={m} onClick={function(){setMode(m);setErrors({});}} style={{flex:1,padding:"9px 0",borderRadius:8,background:mode===m?C.surface:"transparent",border:"none",fontWeight:700,color:mode===m?C.brownDark:C.textMid,fontSize:14}}>{m==="login"?"Iniciar sesión":"Registrarme"}</button>;
+            })}
+          </div>
+          {mode==="register"&&(
+            <div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 10px"}}>
+                <Field label="Nombre *" error={errors.firstName} C={C}><input placeholder="Tu nombre" value={firstName} onChange={function(e){setFirstName(e.target.value);clrErr("firstName");}} className={errors.firstName?"err":""}/></Field>
+                <Field label="Apellido *" error={errors.lastName} C={C}><input placeholder="Tu apellido" value={lastName} onChange={function(e){setLastName(e.target.value);clrErr("lastName");}} className={errors.lastName?"err":""}/></Field>
+              </div>
+              <Field label="Tipo de cuenta" C={C}><select value={role} onChange={function(e){setRole(e.target.value);}}><option value="owner">Dueño de mascota</option><option value="vet">Veterinario</option></select></Field>
+              <div style={{display:"grid",gridTemplateColumns:"160px 1fr",gap:"0 10px"}}>
+                <Field label="Tipo doc." C={C}><select value={docType} onChange={function(e){setDocType(e.target.value);setDocNum("");clrErr("docNum");}}><option value="DNI">DNI</option><option value="CE">Carnet</option><option value="PAS">Pasaporte</option></select></Field>
+                <Field label={docType==="DNI"?"Nº DNI (8 digitos)":"Letra + 8 digitos"} error={errors.docNum} C={C}><input value={docNum} onChange={function(e){handleDocNum(e.target.value);}} placeholder={docType==="DNI"?"12345678":"A00000000"} className={errors.docNum?"err":""}/></Field>
+              </div>
+              <Field label="Telefono / WhatsApp" C={C}><input value={phone} onChange={function(e){setPhone(sanitizePhone(e.target.value));}} placeholder="999999999" inputMode="numeric" maxLength={9}/></Field>
+            </div>
+          )}
+          <Field label="Email" error={errors.email} C={C}><input type="email" placeholder="correo@ejemplo.com" value={email} onChange={function(e){setEmail(e.target.value);clrErr("email");}} className={errors.email?"err":""}/></Field>
+          <PasswordField label="Contraseña" value={pass} onChange={function(e){setPass(e.target.value);clrErr("pass");}} error={errors.pass} C={C}/>
+          <Btn onClick={handle} disabled={loading} full={true} C={C} style={{marginTop:4}}>{loading?"...":mode==="login"?"Entrar":"Crear cuenta"}</Btn>
+          {mode==="login"&&<div style={{marginTop:14,padding:"10px 12px",background:C.greenLight,borderRadius:10,fontSize:11,color:C.textMid,lineHeight:1.7}}>{"Admin: admin@vetcare.com / admin2025 | Vet: german@clinica.com / vetcare2025 | Dueño: carlos@mail.com / 1234"}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+function ApptActionModal(props) {
+  var appointment=props.appointment, pets=props.pets, users=props.users, C=props.C;
+  if(!appointment) return null;
+  var pet=byId(pets,appointment.petId);
+  var owner=byId(users,appointment.ownerId);
+  return (
+    <Modal title="Confirmar cita" onClose={props.onClose} C={C}>
+      <div style={{background:C.peach,borderRadius:14,padding:16,marginBottom:18,display:"flex",gap:14,alignItems:"center"}}>
+        <PetAvatar photo={pet&&pet.photo} avatar={pet&&pet.avatar} size={60} C={C}/>
+        <div><div style={{fontWeight:800,fontSize:18,color:C.brownDark}}>{pet&&pet.name}</div><div style={{color:C.textMid,fontSize:13}}>{pet&&pet.species}</div></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:16}}>
+        <div style={{background:C.surface,border:"1px solid "+C.border,borderRadius:10,padding:"8px 12px"}}><div style={{fontSize:11,fontWeight:700,color:C.textMid}}>Fecha</div><div style={{fontSize:14,color:C.text,fontWeight:700}}>{fmtDate(appointment.date)}</div></div>
+        <div style={{background:C.surface,border:"1px solid "+C.border,borderRadius:10,padding:"8px 12px"}}><div style={{fontSize:11,fontWeight:700,color:C.textMid}}>Hora</div><div style={{fontSize:14,color:C.text,fontWeight:700}}>{appointment.time+" hs"}</div></div>
+        <div style={{background:C.surface,border:"1px solid "+C.border,borderRadius:10,padding:"8px 12px"}}><div style={{fontSize:11,fontWeight:700,color:C.textMid}}>Tipo</div><div style={{fontSize:14,color:C.text,fontWeight:700}}>{appointment.type}</div></div>
+        <div style={{background:C.surface,border:"1px solid "+C.border,borderRadius:10,padding:"8px 12px"}}><div style={{fontSize:11,fontWeight:700,color:C.textMid}}>Dueño</div><div style={{fontSize:14,color:C.text,fontWeight:700}}>{fullName(owner)}</div></div>
+      </div>
+      {appointment.notes&&<div style={{background:C.blueLight,borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:13,color:C.blue}}>{"Nota: "+appointment.notes}</div>}
+      <p style={{color:C.textMid,fontSize:14,marginBottom:16,textAlign:"center"}}>Confirmas tu asistencia a esta cita?</p>
+      <div style={{display:"flex",gap:10}}>
+        <Btn variant="success" full={true} C={C} onClick={function(){props.onConfirm(appointment);props.onClose();}}>Confirmar</Btn>
+        <Btn variant="danger" full={true} C={C} onClick={function(){props.onReject(appointment);props.onClose();}}>No puedo asistir</Btn>
+      </div>
+    </Modal>
+  );
+}
+function RequestApptModal(props) {
+  var pets=props.pets, appointments=props.appointments, blockedList=props.blockedList, C=props.C;
+  var TYPES=["Consulta","Vacunación","Cirugía","Urgencia","Control"];
+  var s1=useState(pets.length>0?[pets[0].id]:[]); var selPets=s1[0]; var setSelPets=s1[1];
+  var s2=useState(""); var date=s2[0]; var setDate=s2[1];
+  var s3=useState(""); var time=s3[0]; var setTime=s3[1];
+  var s4=useState("Consulta"); var type=s4[0]; var setType=s4[1];
+  var s5=useState(""); var notes=s5[0]; var setNotes=s5[1];
+  var s6=useState({}); var errors=s6[0]; var setErrors=s6[1];
+  function clrErr(k){ setErrors(function(e){ var n=Object.assign({},e); n[k]=""; return n; }); }
+  var isBlocked=blockedList.indexOf(date)>=0;
+  var usedSlots=useMemo(function(){ return appointments.filter(function(a){return a.date===date&&a.status!=="cancelled";}).map(function(a){return a.time;}); },[appointments,date]);
+  var freeSlots=useMemo(function(){ return TIME_SLOTS.filter(function(t){return usedSlots.indexOf(t)<0;}); },[usedSlots]);
+  function togglePet(id){
+    setSelPets(function(prev){
+      if(prev.indexOf(id)>=0) return prev.filter(function(x){return x!==id;});
+      if(prev.length>=3){ return prev; }
+      return prev.concat([id]);
+    });
+    clrErr("pets");
+  }
+  function validate(){
+    var e={};
+    if(selPets.length===0) e.pets="Selecciona al menos una mascota.";
+    if(!date) e.date="Fecha obligatoria.";
+    else if(date<today()) e.date="No puede ser pasada.";
+    else if(isBlocked) e.date="Dia bloqueado.";
+    if(!time) e.time="Selecciona un horario.";
+    return e;
+  }
+  function submit(){
+    var e=validate(); if(Object.keys(e).length){setErrors(e);return;}
+    selPets.forEach(function(petId){ props.onSend({petId:petId,date:date,time:time,type:type,notes:notes}); });
+    props.onClose();
+  }
+  return (
+    <Modal title="Solicitar cita" onClose={props.onClose} C={C}>
+      <div style={{marginBottom:14}}>
+        <label style={{color:C.brownDark}}>{"Mascotas (maximo 3)"}</label>
+        {errors.pets&&<div style={{color:C.red,fontSize:12,marginTop:4}}>{errors.pets}</div>}
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:6}}>
+          {pets.map(function(p){
+            var sel=selPets.indexOf(p.id)>=0;
+            return <button key={p.id} type="button" onClick={function(){togglePet(p.id);}} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:20,border:"2px solid "+(sel?C.brown:C.border),background:sel?C.peach:"transparent",color:sel?C.brownDark:C.textMid,fontWeight:700,fontSize:13,cursor:"pointer"}}>{p.avatar+" "+p.name+(sel?" v":"")}</button>;
+          })}
+        </div>
+      </div>
+      <Field label="Tipo de atención" C={C}><select value={type} onChange={function(e){setType(e.target.value);}}>{TYPES.map(function(t){return <option key={t}>{t}</option>;})}</select></Field>
+      <Field label="Fecha deseada *" error={errors.date} C={C}><input type="date" value={date} onChange={function(e){setDate(e.target.value);setTime("");clrErr("date");}} min={today()} className={errors.date?"err":""}/></Field>
+      {isBlocked&&<div style={{background:C.redLight,borderRadius:10,padding:"10px 14px",marginBottom:14,color:C.red,fontSize:13,fontWeight:700}}>Dia bloqueado. Elige otra fecha.</div>}
+      {date&&!isBlocked&&(
+        <Field label={freeSlots.length===0?"Sin horarios disponibles":"Horario *"} error={errors.time} C={C}>
+          {freeSlots.length===0?<p style={{color:C.red,fontSize:13}}>Sin horarios libres este dia.</p>
+            :<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {freeSlots.map(function(t){ return <button key={t} type="button" onClick={function(){setTime(t);clrErr("time");}} style={{padding:"6px 10px",borderRadius:8,border:"1.5px solid "+(time===t?C.brown:C.border),background:time===t?C.brown:"transparent",color:time===t?"#fff":C.text,fontSize:12,fontWeight:700,cursor:"pointer"}}>{t}</button>; })}
+            </div>}
+        </Field>
+      )}
+      <Field label="Motivo (opcional)" C={C}><textarea rows={2} value={notes} onChange={function(e){setNotes(e.target.value);}} placeholder="Describe el motivo..."/></Field>
+      <div style={{display:"flex",gap:10,marginTop:8}}>
+        <Btn onClick={submit} full={true} C={C} disabled={isBlocked||!date}>{"Enviar"+( selPets.length>1?" ("+selPets.length+" mascotas)":"")}</Btn>
+        <Btn variant="ghost" onClick={props.onClose} full={true} C={C}>Cancelar</Btn>
+      </div>
+    </Modal>
+  );
+}
+function ClinicalNoteModal(props) {
+  var appointment=props.appointment, pet=props.pet, vetId=props.vetId, existing=props.existingRecord, C=props.C;
+  var TYPES=["Consulta","Vacunación","Cirugía","Urgencia","Control"];
+  var s1=useState(existing&&existing.diagnosis||""); var diagnosis=s1[0]; var setDiagnosis=s1[1];
+  var s2=useState(existing&&existing.weight||""); var weight=s2[0]; var setWeight=s2[1];
+  var s3=useState(existing&&existing.nextVisit||""); var nextVisit=s3[0]; var setNextVisit=s3[1];
+  var s4=useState(existing&&existing.notes||""); var notes=s4[0]; var setNotes=s4[1];
+  var s5=useState(existing&&existing.duration||""); var duration=s5[0]; var setDuration=s5[1];
+  var s6=useState(existing&&existing.items||[]); var items=s6[0]; var setItems=s6[1];
+  var s7=useState(""); var itemText=s7[0]; var setItemText=s7[1];
+  var s8=useState("tratamiento"); var itemType=s8[0]; var setItemType=s8[1];
+  var s9=useState({}); var errors=s9[0]; var setErrors=s9[1];
+  function addItem(){ if(!itemText.trim())return; setItems(function(prev){return prev.concat([{id:genId(),text:itemText.trim(),type:itemType,files:[]}]);}); setItemText(""); }
+  function removeItem(id){ setItems(function(prev){return prev.filter(function(x){return x.id!==id;});}); }
+  function submit(){
+    if(!diagnosis.trim()){setErrors({diagnosis:"Diagnóstico obligatorio."});return;}
+    var record={id:existing&&existing.id||("r"+genId()),petId:appointment.petId,vetId:vetId,date:appointment.date,type:appointment.type,diagnosis:diagnosis,weight:weight,nextVisit:nextVisit,notes:notes,duration:duration?parseInt(duration):null,attended:true,items:items};
+    props.onSave(record,appointment.id);
+  }
+  return (
+    <Modal title={"Historia clínica: "+(pet&&pet.name||"")} onClose={props.onClose} C={C}>
+      <div style={{display:"flex",gap:12,alignItems:"center",background:C.peach,borderRadius:12,padding:12,marginBottom:16}}>
+        <PetAvatar photo={pet&&pet.photo} avatar={pet&&pet.avatar} size={48} C={C}/>
+        <div>
+          <div style={{fontWeight:800,fontSize:16,color:C.brownDark}}>{pet&&pet.name}</div>
+          <div style={{fontSize:12,color:C.textMid}}>{pet&&(pet.species+" - "+pet.breed)}</div>
+          <div style={{fontSize:12,color:C.textMid}}>{"Cita: "+fmtDate(appointment.date)+" "+appointment.time+" hs"}</div>
+        </div>
+      </div>
+      <Field label="Diagnóstico *" error={errors.diagnosis} C={C}>
+        <textarea rows={2} value={diagnosis} onChange={function(e){setDiagnosis(e.target.value);setErrors({});}} placeholder="Diagnóstico principal..."/>
+      </Field>
+      <TreatmentItemsField items={items} itemText={itemText} itemType={itemType} onItemTextChange={setItemText} onItemTypeChange={setItemType} onAdd={addItem} onRemove={removeItem} onAddFile={async function(itemId,e){var files=Array.from(e.target.files||[]);for(var _i=0;_i<files.length;_i++){var f=files[_i];if(f.size>3*1024*1024){alert("Máximo 3 MB por archivo.");continue;}var b64=await toBase64(f);var fe={id:genId(),file:b64,fileName:f.name};setItems(function(prev){return prev.map(function(x){return x.id===itemId?Object.assign({},x,{files:(x.files||[]).concat([fe])}):x;});});} e.target.value="";}} onRemoveFile={function(itemId,fileId){setItems(function(prev){return prev.map(function(x){return x.id===itemId?Object.assign({},x,{files:(x.files||[]).filter(function(f){return f.id!==fileId;})}):x;});});}} C={C}/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+        <Field label="Peso (kg)" C={C}><input value={weight} onChange={function(e){setWeight(e.target.value);}} placeholder="Ej: 4.5" inputMode="decimal"/></Field>
+        <Field label="Duración (min)" C={C}><input type="number" value={duration} onChange={function(e){setDuration(e.target.value);}} placeholder="Ej: 30" min={1} max={300}/></Field>
+        <div style={{gridColumn:"1/-1"}}><Field label="Próxima visita" C={C}>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <input type="date" value={nextVisit} onChange={function(e){setNextVisit(e.target.value);}} min={today()} style={{flex:1}}/>
+          {nextVisit&&<button type="button" onClick={function(){setNextVisit("");}} title="Borrar fecha" style={{background:"none",border:"none",color:C.red,fontSize:20,cursor:"pointer",padding:"0 4px",lineHeight:1,flexShrink:0}}>{"×"}</button>}
+        </div>
+      </Field></div>
+      </div>
+      <Field label="Notas adicionales" C={C}><textarea rows={2} value={notes} onChange={function(e){setNotes(e.target.value);}} placeholder="Observaciones..."/></Field>
+      <div style={{display:"flex",gap:10,marginTop:8}}>
+        <Btn onClick={submit} full={true} C={C} variant="success">Guardar y marcar atendida</Btn>
+        <Btn variant="ghost" onClick={props.onClose} full={true} C={C}>Cancelar</Btn>
+      </div>
+    </Modal>
+  );
+}
+function AdminUsersPanel(props) {
+  var users=props.users, setUsers=props.setUsers, push=props.push, C=props.C;
+  var isMobile=useIsMobile();
+  var s1=useState(null); var editUser=s1[0]; var setEditUser=s1[1];
+  var s2=useState(false); var showAdd=s2[0]; var setShowAdd=s2[1];
+  var s3=useState(""); var search=s3[0]; var setSearch=s3[1];
+  var roleColor={admin:C.purple,vet:C.blue,owner:C.green};
+  var roleLabel={admin:"Admin",vet:"Veterinario",owner:"Dueño"};
+  var filtered=users.filter(function(u){ var nm=fullName(u).toLowerCase(); return nm.indexOf(search.toLowerCase())>=0||u.email.indexOf(search.toLowerCase())>=0; });
+  function sendCreds(u){ var n=fullName(u); simEmail(u.email,"Credenciales VetCare - "+n,push); simWA(u.phone,"Hola "+n+", tus credenciales VetCare: "+u.email,push); push("Credenciales enviadas a "+n); }
+  async function toggleBlock(u){ var nu=users.map(function(x){return x.id===u.id?Object.assign({},x,{blocked:!x.blocked}):x;}); await sSet(KEYS.users,nu); setUsers(nu); push(fullName(u)+" "+(u.blocked?"desbloqueado":"bloqueado")); }
+  async function saveEdit(updated){ var nu=users.map(function(x){return x.id===updated.id?Object.assign({},x,updated):x;}); await sSet(KEYS.users,nu); setUsers(nu); setEditUser(null); push("Usuario actualizado"); }
+  async function addNewUser(nu){ var nl=users.concat([nu]); await sSet(KEYS.users,nl); setUsers(nl); setShowAdd(false); push("Usuario "+fullName(nu)+" creado"); }
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4,flexWrap:"wrap",gap:10}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:isMobile?22:26,color:C.brownDark}}>Gestión de Usuarios</h2>
+        <Btn C={C} onClick={function(){setShowAdd(true);}}>+ Nuevo usuario</Btn>
+      </div>
+      <p style={{color:C.textMid,fontSize:13,marginBottom:16}}>{users.length+" usuarios registrados"}</p>
+      <div style={{marginBottom:14}}><input placeholder="Buscar por nombre o email..." value={search} onChange={function(e){setSearch(e.target.value);}}/></div>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {filtered.map(function(u){
+          var rc=roleColor[u.role]||C.green;
+          var rl=roleLabel[u.role]||u.role;
+          return (
+            <Card key={u.id} C={C} style={{padding:"14px 16px",opacity:u.blocked?0.65:1}}>
+              <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+                <div style={{width:44,height:44,borderRadius:12,background:rc+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{u.role==="admin"?"🛡️":u.role==="vet"?"🩺":"👤"}</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:800,fontSize:15,color:C.brownDark}}>{fullName(u)}{u.blocked&&<span style={{marginLeft:8,background:C.redLight,color:C.red,borderRadius:8,padding:"2px 8px",fontSize:11}}>BLOQUEADO</span>}</div>
+                  <div style={{fontSize:12,color:C.textMid}}>{u.email+" - "+u.docType+": "+(u.docNum||"—")}</div>
+                  <div style={{fontSize:12,color:C.textLight}}><span style={{background:rc+"22",color:rc,borderRadius:8,padding:"2px 8px",fontWeight:700}}>{rl}</span>{u.phone&&<span style={{marginLeft:8}}>{"📱 "+u.phone}</span>}</div>
+                </div>
+                <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap"}}>
+                  <Btn small={true} variant="ghost" C={C} onClick={function(){setEditUser(u);}}>✏️</Btn>
+                  <Btn small={true} variant="purple" C={C} onClick={function(){sendCreds(u);}}>📧</Btn>
+                  {u.role!=="admin"&&<Btn small={true} variant={u.blocked?"success":"danger"} C={C} onClick={function(){toggleBlock(u);}}>{u.blocked?"🔓":"🔒"}</Btn>}
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+      {editUser&&<EditUserModal user={editUser} onSave={saveEdit} onClose={function(){setEditUser(null);}} C={C}/>}
+      {showAdd&&<AddUserModal users={users} onAdd={addNewUser} onClose={function(){setShowAdd(false);}} C={C}/>}
+    </div>
+  );
+}
+function EditUserModal(props) {
+  var user=props.user, C=props.C;
+  var s1=useState(user.firstName||""); var firstName=s1[0]; var setFirstName=s1[1];
+  var s2=useState(user.lastName||""); var lastName=s2[0]; var setLastName=s2[1];
+  var s3=useState(user.email||""); var email=s3[0]; var setEmail=s3[1];
+  var s4=useState(user.phone||""); var phone=s4[0]; var setPhone=s4[1];
+  var s5=useState(user.docType||"DNI"); var docType=s5[0]; var setDocType=s5[1];
+  var s6=useState(user.docNum||""); var docNum=s6[0]; var setDocNum=s6[1];
+  var s7=useState(user.role||"owner"); var role=s7[0]; var setRole=s7[1];
+  var s8=useState(""); var newPass=s8[0]; var setNewPass=s8[1];
+  var s9=useState({}); var errors=s9[0]; var setErrors=s9[1];
+  function submit(){
+    if(!firstName.trim()||!lastName.trim()){setErrors({name:"Nombre y apellido obligatorios."});return;}
+    var updated=Object.assign({},user,{firstName:firstName.trim(),lastName:lastName.trim(),email:email,phone:phone,docType:docType,docNum:docNum,role:role});
+    if(newPass.length>=4) updated.password=newPass;
+    props.onSave(updated);
+  }
+  return (
+    <Modal title={"Editar: "+fullName(user)} onClose={props.onClose} C={C}>
+      {errors.name&&<div style={{color:C.red,fontSize:12,marginBottom:10}}>{errors.name}</div>}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 10px"}}>
+        <Field label="Nombre *" C={C}><input value={firstName} onChange={function(e){setFirstName(e.target.value);}} placeholder="Nombre"/></Field>
+        <Field label="Apellido *" C={C}><input value={lastName} onChange={function(e){setLastName(e.target.value);}} placeholder="Apellido"/></Field>
+      </div>
+      <Field label="Email" C={C}><input type="email" value={email} onChange={function(e){setEmail(e.target.value);}}/></Field>
+      <Field label="Telefono / WhatsApp" C={C}><input value={phone} onChange={function(e){setPhone(sanitizePhone(e.target.value));}} placeholder="999999999" maxLength={9}/></Field>
+      <Field label="Rol" C={C}><select value={role} onChange={function(e){setRole(e.target.value);}}><option value="owner">Dueño</option><option value="vet">Veterinario</option><option value="admin">Admin</option></select></Field>
+      <div style={{display:"grid",gridTemplateColumns:"160px 1fr",gap:"0 10px"}}>
+        <Field label="Tipo doc." C={C}><select value={docType} onChange={function(e){setDocType(e.target.value);}}><option value="DNI">DNI</option><option value="CE">Carnet</option><option value="PAS">Pasaporte</option></select></Field>
+        <Field label="Nº documento" C={C}><input value={docNum} onChange={function(e){setDocNum(e.target.value);}}/></Field>
+      </div>
+      <PasswordField label="Nueva contrasena (vacio = no cambiar)" value={newPass} onChange={function(e){setNewPass(e.target.value);}} C={C}/>
+      <div style={{display:"flex",gap:10,marginTop:8}}><Btn onClick={submit} full={true} C={C}>Guardar</Btn><Btn variant="ghost" onClick={props.onClose} full={true} C={C}>Cancelar</Btn></div>
+    </Modal>
+  );
+}
+function AddUserModal(props) {
+  var users=props.users, C=props.C;
+  var s1=useState(""); var firstName=s1[0]; var setFirstName=s1[1];
+  var s2=useState(""); var lastName=s2[0]; var setLastName=s2[1];
+  var s3=useState(""); var email=s3[0]; var setEmail=s3[1];
+  var s4=useState(""); var pass=s4[0]; var setPass=s4[1];
+  var s5=useState("owner"); var role=s5[0]; var setRole=s5[1];
+  var s6=useState("DNI"); var docType=s6[0]; var setDocType=s6[1];
+  var s7=useState(""); var docNum=s7[0]; var setDocNum=s7[1];
+  var s8=useState(""); var phone=s8[0]; var setPhone=s8[1];
+  var s9=useState({}); var errors=s9[0]; var setErrors=s9[1];
+  function submit(){
+    var e={};
+    if(!firstName.trim()) e.firstName="Nombre obligatorio.";
+    if(!lastName.trim()) e.lastName="Apellido obligatorio.";
+    if(!email.trim()) e.email="Email obligatorio.";
+    else { var exists=false; for(var i=0;i<users.length;i++){if(users[i].email===email){exists=true;break;}} if(exists) e.email="Email ya registrado."; }
+    if(!pass||pass.length<4) e.pass="Mínimo 4 caracteres.";
+    var de=validateDoc(docType,docNum); if(de) e.docNum=de;
+    if(Object.keys(e).length){setErrors(e);return;}
+    var nu={id:"u"+genId(),role:role,firstName:firstName.trim(),lastName:lastName.trim(),email:email.trim(),password:pass,docType:docType,docNum:docNum,phone:phone.trim(),blocked:false};
+    props.onAdd(nu);
+  }
+  return (
+    <Modal title="Crear nuevo usuario" onClose={props.onClose} C={C}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 10px"}}>
+        <Field label="Nombre *" error={errors.firstName} C={C}><input value={firstName} onChange={function(e){setFirstName(e.target.value);}} className={errors.firstName?"err":""}/></Field>
+        <Field label="Apellido *" error={errors.lastName} C={C}><input value={lastName} onChange={function(e){setLastName(e.target.value);}} className={errors.lastName?"err":""}/></Field>
+      </div>
+      <Field label="Rol" C={C}><select value={role} onChange={function(e){setRole(e.target.value);}}><option value="owner">Dueño</option><option value="vet">Veterinario</option><option value="admin">Admin</option></select></Field>
+      <div style={{display:"grid",gridTemplateColumns:"160px 1fr",gap:"0 10px"}}>
+        <Field label="Tipo doc." C={C}><select value={docType} onChange={function(e){setDocType(e.target.value);}}><option value="DNI">DNI</option><option value="CE">Carnet</option><option value="PAS">Pasaporte</option></select></Field>
+        <Field label="Nº documento" error={errors.docNum} C={C}><input value={docNum} onChange={function(e){setDocNum(e.target.value);}} className={errors.docNum?"err":""}/></Field>
+      </div>
+      <Field label="Telefono / WhatsApp" C={C}><input value={phone} onChange={function(e){setPhone(sanitizePhone(e.target.value));}} placeholder="999999999" maxLength={9}/></Field>
+      <Field label="Email *" error={errors.email} C={C}><input type="email" value={email} onChange={function(e){setEmail(e.target.value);}} className={errors.email?"err":""}/></Field>
+      <PasswordField label="Contrasena *" value={pass} onChange={function(e){setPass(e.target.value);}} error={errors.pass} C={C}/>
+      <div style={{display:"flex",gap:10,marginTop:8}}><Btn onClick={submit} full={true} C={C}>Crear</Btn><Btn variant="ghost" onClick={props.onClose} full={true} C={C}>Cancelar</Btn></div>
+    </Modal>
+  );
+}
+function BlockedPanel(props) {
+  var blockedDays=props.blockedDays, setBlockedDays=props.setBlockedDays, push=props.push, C=props.C;
+  var isMobile=useIsMobile();
+  var s1=useState("single"); var mode=s1[0]; var setMode=s1[1];
+  var s2=useState(""); var dateFrom=s2[0]; var setDateFrom=s2[1];
+  var s3=useState(""); var dateTo=s3[0]; var setDateTo=s3[1];
+  var s4=useState(""); var reason=s4[0]; var setReason=s4[1];
+  var s5=useState(""); var search=s5[0]; var setSearch=s5[1];
+  var s6=useState([]); var selected=s6[0]; var setSelected=s6[1];
+  var s7=useState(""); var err=s7[0]; var setErr=s7[1];
+  function getDates(from,to){ var dates=[],cur=new Date(from),end=new Date(to); while(cur<=end){dates.push(cur.toISOString().slice(0,10));cur.setDate(cur.getDate()+1);} return dates; }
+  async function addBlock(){
+    setErr("");
+    if(!dateFrom){setErr("Fecha de inicio obligatoria.");return;}
+    if(mode==="range"&&!dateTo){setErr("Fecha de fin obligatoria.");return;}
+    if(mode==="range"&&dateTo<dateFrom){setErr("La fecha de fin debe ser posterior.");return;}
+    var dates=mode==="range"?getDates(dateFrom,dateTo):[dateFrom];
+    var newEntries=dates.filter(function(d){return !blockedDays.find(function(b){return b.date===d;});}).map(function(d){return {date:d,reason:reason||"No disponible"};});
+    if(newEntries.length===0){push("Esos dias ya estan bloqueados","warning");return;}
+    var nb=blockedDays.concat(newEntries).sort(function(a,b){return a.date.localeCompare(b.date);});
+    await sSet(KEYS.blocked,nb); setBlockedDays(nb); setDateFrom(""); setDateTo(""); setReason("");
+    push(newEntries.length+" dia(s) bloqueado(s)");
+  }
+  async function removeSelected(){
+    if(selected.length===0)return;
+    if(!confirm("Desbloquear "+selected.length+" dia(s)?"))return;
+    var nb=blockedDays.filter(function(b){return selected.indexOf(b.date)<0;});
+    await sSet(KEYS.blocked,nb); setBlockedDays(nb); setSelected([]);
+    push(selected.length+" dia(s) desbloqueado(s)");
+  }
+  async function removeSingle(date){ var nb=blockedDays.filter(function(b){return b.date!==date;}); await sSet(KEYS.blocked,nb); setBlockedDays(nb); setSelected(function(s){return s.filter(function(x){return x!==date;});}); push("Dia "+fmtDate(date)+" desbloqueado"); }
+  var filtered=blockedDays.filter(function(b){ if(!search) return true; return fmtDate(b.date).indexOf(search)>=0||b.date.indexOf(search)>=0||b.reason.toLowerCase().indexOf(search.toLowerCase())>=0; });
+  function toggleSel(date){ setSelected(function(s){ return s.indexOf(date)>=0?s.filter(function(x){return x!==date;}):s.concat([date]); }); }
+  return (
+    <div>
+      <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:isMobile?22:26,color:C.brownDark,marginBottom:4}}>Dias Bloqueados</h2>
+      <p style={{color:C.textMid,fontSize:13,marginBottom:16}}>Los duenos no pueden solicitar citas en estos dias</p>
+      <Card C={C} style={{marginBottom:18}}>
+        <h3 style={{fontWeight:800,color:C.brownDark,marginBottom:14,fontSize:14}}>Bloquear dias</h3>
+        <div style={{display:"flex",marginBottom:14,background:C.peach,borderRadius:10,padding:4}}>
+          {["single","range"].map(function(m){return <button key={m} onClick={function(){setMode(m);setErr("");}} style={{flex:1,padding:"8px 0",borderRadius:8,background:mode===m?C.surface:"transparent",border:"none",fontWeight:700,color:mode===m?C.brownDark:C.textMid,fontSize:13}}>{m==="single"?"Un dia":"Rango de dias"}</button>;})}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+          <Field label={mode==="range"?"Fecha inicio *":"Fecha *"} C={C}><input type="date" value={dateFrom} onChange={function(e){setDateFrom(e.target.value);}} min={today()}/></Field>
+          {mode==="range"?<Field label="Fecha fin *" C={C}><input type="date" value={dateTo} onChange={function(e){setDateTo(e.target.value);}} min={dateFrom||today()}/></Field>:<div/>}
+          <div style={{gridColumn:"1/-1"}}><Field label="Motivo (opcional)" C={C}><input value={reason} onChange={function(e){setReason(e.target.value);}} placeholder="Feriado, mantenimiento..."/></Field></div>
+        </div>
+        {err&&<div style={{color:C.red,fontSize:12,marginBottom:10}}>{err}</div>}
+        <Btn onClick={addBlock} disabled={!dateFrom||(mode==="range"&&!dateTo)} C={C}>Bloquear</Btn>
+      </Card>
+      {blockedDays.length>0&&(
+        <div>
+          <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:12,flexWrap:"wrap"}}>
+            <span style={{fontSize:13,color:C.textMid}}>{blockedDays.length+" dia(s) bloqueado(s)"}</span>
+            {selected.length>0&&<Btn small={true} variant="danger" C={C} onClick={removeSelected}>{"Desbloquear ("+selected.length+")"}</Btn>}
+          </div>
+          <div style={{marginBottom:10}}><input placeholder="Buscar fecha o motivo..." value={search} onChange={function(e){setSearch(e.target.value);}}/></div>
+          {filtered.length===0&&<p style={{color:C.textLight,textAlign:"center",padding:20,fontSize:13}}>Sin resultados</p>}
+          {filtered.map(function(b){
+            var isSel=selected.indexOf(b.date)>=0;
+            return (
+              <div key={b.date} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,border:"1.5px solid "+(isSel?C.red:C.border),background:isSel?C.redLight:C.surface,marginBottom:6,cursor:"pointer"}} onClick={function(){toggleSel(b.date);}}>
+                <div style={{width:18,height:18,borderRadius:4,border:"2px solid "+(isSel?C.red:C.border),background:isSel?C.red:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{isSel&&<span style={{color:"#fff",fontSize:11}}>v</span>}</div>
+                <div style={{fontSize:22,flexShrink:0}}>🚫</div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:800,fontSize:13,color:C.brownDark}}>{fmtDate(b.date)}</div>
+                  <div style={{fontSize:12,color:C.textMid}}>{b.reason}</div>
+                </div>
+                <Btn small={true} variant="danger" C={C} onClick={function(e){e.stopPropagation();removeSingle(b.date);}}>🔓</Btn>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {blockedDays.length===0&&<p style={{color:C.textLight,textAlign:"center",padding:40}}>No hay dias bloqueados.</p>}
+    </div>
+  );
+}
+function CalendarView(props) {
+  var appointments=props.appointments, apptReqs=props.apptReqs, pets=props.pets, users=props.users, user=props.user;
+  var onAdd=props.onAdd, onEdit=props.onEdit, onConfirmReq=props.onConfirmReq, onConfirmAll=props.onConfirmAll;
+  var onCancel=props.onCancel, onReschedule=props.onReschedule, onApprove=props.onApprove, onReject=props.onReject;
+  var onSendReq=props.onSendReq, onOpenClinical=props.onOpenClinical, onConfirmAndAttend=props.onConfirmAndAttend;
+  var blockedDays=props.blockedDays, C=props.C;
+  var isMobile=useIsMobile();
+  var isVet=user.role==="vet", isAdmin=user.role==="admin", isOwner=user.role==="owner";
+  var s1=useState(today()); var selDate=s1[0]; var setSelDate=s1[1];
+  var s2=useState(function(){var d=new Date();return {y:d.getFullYear(),m:d.getMonth()};}); var vm=s2[0]; var setVm=s2[1];
+  var s3=useState(null); var detailAppt=s3[0]; var setDetailAppt=s3[1];
+  var s4=useState(false); var showCancelled=s4[0]; var setShowCancelled=s4[1];
+  var s5=useState(false); var showReqModal=s5[0]; var setShowReqModal=s5[1];
+  var s6=useState(false); var reqsOpen=s6[0]; var setReqsOpen=s6[1];
+  var s7=useState(false); var confOpen=s7[0]; var setConfOpen=s7[1];
+  var s8=useState(0); var reqPage=s8[0]; var setReqPage=s8[1];
+  var s9=useState(0); var confPage=s9[0]; var setConfPage=s9[1];
+  var PER=5;
+  var blockedList=blockedDays.map(function(b){return b.date;});
+  var myAppts=isVet||isAdmin?appointments:appointments.filter(function(a){return a.ownerId===user.id;});
+  var active=myAppts.filter(function(a){return a.status!=="cancelled";});
+  var cancelled=myAppts.filter(function(a){return a.status==="cancelled";});
+  var pendingReqs=(isVet||isAdmin)?apptReqs.filter(function(r){return r.status==="pending";}).sort(function(a,b){return b.ts-a.ts;}):[];
+  function getPet(id){return byId(pets,id);}
+  function getUser(id){return byId(users,id);}
+  var firstDay=new Date(vm.y,vm.m,1);
+  var lastDay=new Date(vm.y,vm.m+1,0);
+  var startDow=firstDay.getDay();
+  var days=[]; for(var i=0;i<startDow;i++) days.push(null); for(var d=1;d<=lastDay.getDate();d++) days.push(d);
+  function isoDate(d){ var mm=String(vm.m+1).padStart?String(vm.m+1).padStart(2,"0"):(vm.m+1<10?"0"+(vm.m+1):""+(vm.m+1)); var dd=d<10?"0"+d:""+d; return vm.y+"-"+mm+"-"+dd; }
+  var monthName=new Date(vm.y,vm.m,1).toLocaleDateString("es-PE",{month:"long",year:"numeric"});
+  var todayAppts=active.filter(function(a){return a.date===selDate;}).sort(function(a,b){return a.time.localeCompare(b.time);});
+  var upcoming=active.filter(function(a){return a.date>=today();}).sort(function(a,b){return a.date.localeCompare(b.date)||a.time.localeCompare(b.time);});
+  var pendingUp=upcoming.filter(function(a){return a.status==="pending";});
+  var confirmedUp=upcoming.filter(function(a){return a.status==="confirmed";});
+  var totalReqPages=Math.ceil(pendingReqs.length/PER);
+  var reqSlice=pendingReqs.slice(reqPage*PER,(reqPage+1)*PER);
+  var totalConfPages=Math.ceil(confirmedUp.length/PER);
+  var confSlice=confirmedUp.slice(confPage*PER,(confPage+1)*PER);
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,flexWrap:"wrap",gap:10}}>
+        <div>
+          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:isMobile?22:26,color:C.brownDark}}>{isOwner?"Mis Citas":"Calendario de Citas"}</h2>
+          <p style={{color:C.textMid,fontSize:13}}>{active.length+" activa(s)"+(pendingReqs.length>0?" - "+pendingReqs.length+" solicitud(es)":"")}</p>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {isOwner&&<Btn small={true} variant="purple" C={C} onClick={function(){setShowReqModal(true);}}>Solicitar cita</Btn>}
+          {(isVet||isAdmin)&&pendingUp.length>0&&<Btn variant="warning" small={true} C={C} onClick={onConfirmAll}>{"Solicitar confirmacion ("+pendingUp.length+")"}</Btn>}
+          {(isVet||isAdmin)&&<Btn small={true} C={C} onClick={function(){onAdd();}}>+ Nueva cita</Btn>}
+        </div>
+      </div>
+      {pendingReqs.length>0&&(
+        <div style={{marginBottom:14,borderRadius:16,border:"1.5px solid "+C.purple,overflow:"hidden"}}>
+          <button onClick={function(){setReqsOpen(function(o){return !o;});}} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",background:C.purpleLight,border:"none",cursor:"pointer",textAlign:"left"}}>
+            <span style={{fontWeight:800,color:C.purple,fontSize:14}}>{"Solicitudes pendientes ("+(pendingReqs.length)+")"}</span>
+            <span style={{color:C.purple,fontSize:16}}>{reqsOpen?"▾":"▸"}</span>
+          </button>
+          {reqsOpen&&(
+            <div style={{background:C.surface}}>
+              {reqSlice.map(function(req){
+                var pet=getPet(req.petId),owner=getUser(req.ownerId);
+                return (
+                  <div key={req.id} style={{display:"flex",gap:10,alignItems:"center",padding:"10px 14px",borderBottom:"1px solid "+C.border,flexWrap:"wrap"}}>
+                    <PetAvatar photo={pet&&pet.photo} avatar={pet&&pet.avatar} size={36} C={C}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:700,fontSize:13,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(pet&&pet.name||"")+" - "+fullName(owner)}</div>
+                      <div style={{fontSize:12,color:C.textMid}}>{fmtDate(req.date)+" - "+req.time+" hs - "}<Badge type={req.type}/></div>
+                      {req.notes&&<div style={{fontSize:11,color:C.textLight,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{"Nota: "+req.notes}</div>}
+                    </div>
+                    <div style={{display:"flex",gap:6,flexShrink:0}}>
+                      <button onClick={function(){onApprove(req);}} title="Aprobar" style={sBtnIcon(C,C.green,C.greenLight,34)}>{"✅"}</button>
+                      <button onClick={function(){onReject(req);}} title="Rechazar" style={sBtnIcon(C,C.red,C.redLight,34)}>{"❌"}</button>
+                    </div>
+                  </div>
+                );
+              })}
+              {totalReqPages>1&&(
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"10px 14px",borderTop:"1px solid "+C.border}}>
+                  <button onClick={function(){setReqPage(function(p){return Math.max(0,p-1);});}} disabled={reqPage===0} style={{background:C.peach,border:"none",borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,opacity:reqPage===0?0.4:1}}>{"<"}</button>
+                  <span style={{fontSize:13,color:C.textMid}}>{(reqPage+1)+"/"+totalReqPages}</span>
+                  <button onClick={function(){setReqPage(function(p){return Math.min(totalReqPages-1,p+1);});}} disabled={reqPage===totalReqPages-1} style={{background:C.peach,border:"none",borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,opacity:reqPage===totalReqPages-1?0.4:1}}>{">"}</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:16,marginBottom:16}}>
+        <Card C={C} style={{padding:16}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+            <button onClick={function(){setVm(function(v){var m=v.m-1;return m<0?{y:v.y-1,m:11}:{y:v.y,m:m};});}} style={{background:C.peach,border:"none",borderRadius:8,width:30,height:30,fontSize:16,cursor:"pointer",color:C.brownDark}}>{"<"}</button>
+            <span style={{fontWeight:800,fontSize:14,color:C.brownDark,textTransform:"capitalize"}}>{monthName}</span>
+            <button onClick={function(){setVm(function(v){var m=v.m+1;return m>11?{y:v.y+1,m:0}:{y:v.y,m:m};});}} style={{background:C.peach,border:"none",borderRadius:8,width:30,height:30,fontSize:16,cursor:"pointer",color:C.brownDark}}>{">"}</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:6}}>
+            {["Do","Lu","Ma","Mi","Ju","Vi","Sa"].map(function(d){return <div key={d} style={{textAlign:"center",fontSize:11,fontWeight:700,color:C.textLight,padding:"3px 0"}}>{d}</div>;})}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
+            {days.map(function(d,i){
+              if(!d) return <div key={i}/>;
+              var iso=isoDate(d);
+              var ap=active.filter(function(a){return a.date===iso;});
+              var isT=iso===today(), isSel=iso===selDate;
+              var isBlk=blockedList.indexOf(iso)>=0;
+              return (
+                <button key={i} onClick={function(){setSelDate(iso);}} style={{aspectRatio:"1",borderRadius:8,border:"none",background:isSel?C.brown:isBlk?C.redLight:isT?C.peach:"transparent",color:isSel?"#fff":isBlk?C.red:isT?C.brownDark:C.text,fontWeight:isSel||isT?800:400,fontSize:12,cursor:"pointer",position:"relative",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:0}}>
+                  {isBlk?"X":d}
+                  {!isBlk&&ap.length>0&&<div style={{position:"absolute",bottom:1,display:"flex",gap:2}}>{ap.slice(0,3).map(function(_,i2){return <div key={i2} style={{width:3,height:3,borderRadius:50,background:isSel?"#ffffffaa":C.brown}}/>;})}</div>}
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+        <Card C={C} style={{padding:16}}>
+          <div style={{fontWeight:800,fontSize:14,color:C.brownDark,marginBottom:12}}>{fmtDate(selDate)}</div>
+          {blockedList.indexOf(selDate)>=0&&<div style={{background:C.redLight,borderRadius:10,padding:"8px 12px",marginBottom:10,color:C.red,fontSize:13,fontWeight:700}}>Dia bloqueado</div>}
+          {todayAppts.length===0?<p style={{color:C.textLight,fontSize:13,textAlign:"center",padding:"20px 0"}}>Sin citas este dia</p>
+            :todayAppts.map(function(a){
+              var pet=getPet(a.petId),owner=getUser(a.ownerId);
+              return (
+                <div key={a.id} style={{display:"flex",gap:10,alignItems:"flex-start",padding:"8px 0",borderBottom:"1px solid "+C.border,cursor:"pointer"}} onClick={function(){setDetailAppt(a);}}>
+                  <div style={{fontSize:12,fontWeight:800,color:C.brown,minWidth:40,flexShrink:0}}>{a.time}</div>
+                  <PetAvatar photo={pet&&pet.photo} avatar={pet&&pet.avatar} size={32} C={C}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:700,fontSize:12,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(pet&&pet.name||"")+((isVet||isAdmin)&&owner?" - "+fullName(owner):"")}</div>
+                    <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:2}}><Badge type={a.type}/><StatusBadge status={a.status} C={C}/></div>
+                  </div>
+                </div>
+              );
+            })}
+        </Card>
+      </div>
+      {pendingUp.length>0&&(isVet||isAdmin)&&(
+        <Card C={C} style={{padding:16,marginBottom:12}}>
+          <div style={{fontWeight:800,fontSize:14,color:C.brownDark,marginBottom:10}}>{"Pendientes de atención ("+pendingUp.length+")"}</div>
+          {pendingUp.map(function(a){
+            var pet=getPet(a.petId),owner=getUser(a.ownerId);
+            return (
+              <div key={a.id} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+C.border,flexWrap:"wrap"}}>
+                <PetAvatar photo={pet&&pet.photo} avatar={pet&&pet.avatar} size={34} C={C}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:700,fontSize:13,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(pet&&pet.name||"")+" - "+fullName(owner)}</div>
+                  <div style={{fontSize:12,color:C.textMid}}>{fmtDate(a.date)+" - "+a.time+" hs"}</div>
+                </div>
+                <div style={{display:"flex",gap:4,flexShrink:0,flexWrap:"wrap"}}>
+                  <button onClick={function(){onConfirmAndAttend(a);}} title="Confirmar y atender" style={{display:"flex",alignItems:"center",gap:4,padding:"6px 10px",background:C.green,border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>{"Atender"}</button>
+                  <button onClick={function(){onConfirmReq([a.id]);}} title="Solicitar confirmación" style={sBtnIcon(C,C.yellow,C.yellowLight)}>{"📨"}</button>
+                  <button onClick={function(){onCancel(a,"vet");}} title="Cancelar" style={{width:32,height:32,background:C.redLight,border:"1px solid "+C.red,borderRadius:8,color:C.red,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",opacity:0.7}}>{"x"}</button>
+                </div>
+              </div>
+            );
+          })}
+        </Card>
+      )}
+      {confirmedUp.length>0&&(isVet||isAdmin)&&(
+        <div style={{marginBottom:14,borderRadius:16,border:"1.5px solid "+C.green,overflow:"hidden"}}>
+          <button onClick={function(){setConfOpen(function(o){return !o;});}} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",background:C.greenLight,border:"none",cursor:"pointer",textAlign:"left"}}>
+            <span style={{fontWeight:800,color:C.green,fontSize:14}}>{"Citas confirmadas próximas ("+confirmedUp.length+")"}</span>
+            <span style={{color:C.green,fontSize:16}}>{confOpen?"▾":"▸"}</span>
+          </button>
+          {confOpen&&(
+            <div style={{background:C.surface}}>
+              {confSlice.map(function(a){
+                var pet=getPet(a.petId),owner=getUser(a.ownerId);
+                return (
+                  <div key={a.id} style={{display:"flex",gap:10,alignItems:"center",padding:"10px 14px",borderBottom:"1px solid "+C.border,flexWrap:"wrap"}}>
+                    <PetAvatar photo={pet&&pet.photo} avatar={pet&&pet.avatar} size={36} C={C}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:700,fontSize:13,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{(pet&&pet.name||"")+" - "+fullName(owner)}</div>
+                      <div style={{fontSize:12,color:C.textMid}}>{fmtDate(a.date)+" - "+a.time+" hs"}</div>
+                    </div>
+                    <div style={{display:"flex",gap:4,flexShrink:0}}>
+                      <button onClick={function(){onOpenClinical(a,pet);}} title="Atender" style={sBtnIcon(C,C.blue,C.blueLight,34)}>{"🩺"}</button>
+                      <button onClick={function(){onEdit(a);}} title="Editar" style={sBtnIcon(C,C.brownDark,C.peach,34)}>{"✏️"}</button>
+                      <button onClick={function(){onCancel(a,"vet");}} title="Cancelar" style={{width:34,height:34,borderRadius:10,background:C.redLight,border:"1px solid "+C.red,color:C.red,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{"x"}</button>
+                    </div>
+                  </div>
+                );
+              })}
+              {totalConfPages>1&&(
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"10px 14px",borderTop:"1px solid "+C.border}}>
+                  <button onClick={function(){setConfPage(function(p){return Math.max(0,p-1);});}} disabled={confPage===0} style={{background:C.peach,border:"none",borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,opacity:confPage===0?0.4:1}}>{"<"}</button>
+                  <span style={{fontSize:13,color:C.textMid}}>{(confPage+1)+"/"+totalConfPages}</span>
+                  <button onClick={function(){setConfPage(function(p){return Math.min(totalConfPages-1,p+1);});}} disabled={confPage===totalConfPages-1} style={{background:C.peach,border:"none",borderRadius:8,width:28,height:28,cursor:"pointer",fontSize:14,opacity:confPage===totalConfPages-1?0.4:1}}>{">"}</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+      {isOwner&&upcoming.length>0&&(
+        <Card C={C} style={{padding:16,marginBottom:12}}>
+          <div style={{fontWeight:800,fontSize:14,color:C.brownDark,marginBottom:10}}>Mis próximas citas</div>
+          {upcoming.map(function(a){
+            var pet=getPet(a.petId);
+            return (
+              <div key={a.id} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+C.border,flexWrap:"wrap"}}>
+                <PetAvatar photo={pet&&pet.photo} avatar={pet&&pet.avatar} size={32} C={C}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:700,fontSize:13,color:C.text}}>{pet&&pet.name}</div>
+                  <div style={{fontSize:12,color:C.textMid}}>{fmtDate(a.date)+" - "+a.time+" hs"}</div>
+                  <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:2}}><Badge type={a.type}/><StatusBadge status={a.status} C={C}/></div>
+                </div>
+                {(a.status==="pending"||a.status==="confirmed")&&(
+                  <div style={{display:"flex",gap:4,flexShrink:0}}>
+                    {a.status==="pending"&&<button onClick={function(){onReschedule(a,"confirmed");}} title="Confirmar" style={sBtnIcon(C,C.green,C.greenLight)}>{"✅"}</button>}
+                    <button onClick={function(){onReschedule(a,"reschedule");}} title="Reprogramar" style={sBtnIcon(C,C.blue,C.blueLight)}>{"🔄"}</button>
+                    <button onClick={function(){onCancel(a,"owner");}} title="Cancelar" style={sBtnIcon(C,C.red,C.redLight)}>{"❌"}</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </Card>
+      )}
+      {cancelled.length>0&&(
+        <Card C={C} style={{padding:16,marginBottom:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <span style={{fontWeight:800,fontSize:14,color:C.brownDark}}>{"Canceladas ("+cancelled.length+")"}</span>
+            <button onClick={function(){setShowCancelled(function(v){return !v;});}} style={{background:"none",border:"none",color:C.blue,fontWeight:700,fontSize:13,cursor:"pointer"}}>{showCancelled?"Ocultar":"Ver"}</button>
+          </div>
+          {showCancelled&&cancelled.sort(function(a,b){return b.date.localeCompare(a.date);}).map(function(a){
+            var pet=getPet(a.petId);
+            return (
+              <div key={a.id} style={{display:"flex",gap:10,alignItems:"center",padding:"8px 0",borderBottom:"1px solid "+C.border,opacity:0.75}}>
+                <PetAvatar photo={pet&&pet.photo} avatar={pet&&pet.avatar} size={34} C={C}/>
+                <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13,color:C.textMid}}>{pet&&pet.name}</div><div style={{fontSize:12,color:C.textLight}}>{fmtDate(a.date)+" - "+a.time+" hs"}</div></div>
+                <Btn small={true} variant="outline" C={C} onClick={function(){onReschedule(a,"reschedule");}}>Reprog.</Btn>
+              </div>
+            );
+          })}
+        </Card>
+      )}
+      {detailAppt&&(function(){
+        var pet=getPet(detailAppt.petId), owner=getUser(detailAppt.ownerId);
+        var isConf=detailAppt.status==="confirmed";
+        return (
+          <Modal title="Detalle de cita" onClose={function(){setDetailAppt(null);}} C={C}>
+            <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:16}}><PetAvatar photo={pet&&pet.photo} avatar={pet&&pet.avatar} size={60} C={C}/><div><div style={{fontWeight:800,fontSize:18,color:C.brownDark}}>{pet&&pet.name}</div><div style={{color:C.textMid,fontSize:13}}>{pet&&pet.species}</div></div></div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+              <div style={{background:C.peach,borderRadius:10,padding:"8px 12px"}}><div style={{fontSize:11,fontWeight:700,color:C.textMid}}>Fecha</div><div style={{fontSize:13,color:C.text,fontWeight:700}}>{fmtDate(detailAppt.date)}</div></div>
+              <div style={{background:C.peach,borderRadius:10,padding:"8px 12px"}}><div style={{fontSize:11,fontWeight:700,color:C.textMid}}>Hora</div><div style={{fontSize:13,color:C.text,fontWeight:700}}>{detailAppt.time+" hs"}</div></div>
+              <div style={{background:C.peach,borderRadius:10,padding:"8px 12px"}}><div style={{fontSize:11,fontWeight:700,color:C.textMid}}>Dueño</div><div style={{fontSize:13,color:C.text,fontWeight:700}}>{fullName(owner)}</div></div>
+              <div style={{background:C.peach,borderRadius:10,padding:"8px 12px"}}><div style={{fontSize:11,fontWeight:700,color:C.textMid}}>Estado</div><div style={{fontSize:13,color:C.text,fontWeight:700}}><StatusBadge status={detailAppt.status} C={C}/></div></div>
+            </div>
+            {isVet&&isConf&&(
+              <div style={{background:C.greenLight,borderRadius:12,padding:"12px 14px",marginBottom:14,border:"1.5px solid "+C.green}}>
+                <div style={{fontWeight:700,color:C.green,fontSize:13,marginBottom:8}}>Cita confirmada - listo para atender</div>
+                <Btn variant="success" full={true} C={C} onClick={function(){setDetailAppt(null);onOpenClinical(detailAppt,pet);}}>Atender - Llenar historia clínica</Btn>
+              </div>
+            )}
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {(isVet||isAdmin)&&<Btn variant="ghost" small={true} C={C} onClick={function(){setDetailAppt(null);onEdit(detailAppt);}}>Editar</Btn>}
+              {(isVet||isAdmin)&&detailAppt.status==="pending"&&<Btn variant="warning" small={true} C={C} onClick={function(){setDetailAppt(null);onConfirmReq([detailAppt.id]);}}>Solicitar confirm.</Btn>}
+              {isOwner&&detailAppt.status==="pending"&&<Btn variant="success" small={true} C={C} onClick={function(){setDetailAppt(null);onReschedule(detailAppt,"confirmed");}}>Confirmar</Btn>}
+              {isOwner&&detailAppt.status==="pending"&&<Btn variant="danger" small={true} C={C} onClick={function(){setDetailAppt(null);onCancel(detailAppt,"owner");}}>Rechazar</Btn>}
+              {(isVet||isAdmin)&&detailAppt.status!=="cancelled"&&<Btn variant="danger" small={true} C={C} onClick={function(){setDetailAppt(null);onCancel(detailAppt,"vet");}}>Cancelar</Btn>}
+            </div>
+          </Modal>
+        );
+      })()}
+      {showReqModal&&<RequestApptModal pets={pets.filter(function(p){return p.ownerId===user.id;})} appointments={appointments} blockedList={blockedList} onSend={onSendReq} onClose={function(){setShowReqModal(false);}} C={C}/>}
+    </div>
+  );
+}
+
+function PetCarnet(props) {
+  var pet=props.pet, owner=props.owner, C=props.C;
+  var canvasRef=props.canvasRef;
+  var sexIcon=pet.sex==="Hembra"?"♀":"♂";
+  var speciesHuella={"Perro":"🐾","Gato":"🐾","Ave":"🦶","Conejo":"🐾","Reptil":"🦎","Pez":"🐟","Otro":"🐾"};
+  var huella=speciesHuella[pet.species]||"🐾";
+  var speciesBg={"Perro":"#8B4513","Gato":"#6B3E26","Ave":"#2E8B57","Conejo":"#8B6914","Reptil":"#4A7C59","Pez":"#1E6B8C","Otro":"#6B3E26"};
+  var cardBg=speciesBg[pet.species]||"#6B3E26";
+  var clinicName="VetCare Clinica Veterinaria";
+  return (
+    <div ref={canvasRef} id="pet-carnet" style={{width:340,background:"#fff",borderRadius:16,overflow:"hidden",boxShadow:"0 8px 32px rgba(0,0,0,0.25)",fontFamily:"'Nunito',sans-serif",margin:"0 auto"}}>
+      {/* Header */}
+      <div style={{background:cardBg,padding:"14px 16px",display:"flex",alignItems:"center",gap:12}}>
+        <div style={{width:48,height:48,borderRadius:10,background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>🐾</div>
+        <div>
+          <div style={{color:"#fff",fontWeight:800,fontSize:14,letterSpacing:1}}>{clinicName.toUpperCase()}</div>
+          <div style={{color:"rgba(255,255,255,0.8)",fontSize:11}}>Registro de Mascota</div>
+        </div>
+      </div>
+      {/* Body */}
+      <div style={{display:"flex",padding:16,gap:14,background:"linear-gradient(135deg,#FDF6EC 0%,#F9E4CC 100%)"}}>
+        {/* Photo */}
+        <div style={{flexShrink:0}}>
+          {pet.photo
+            ?<img src={pet.photo} alt={pet.name} style={{width:90,height:110,borderRadius:10,objectFit:"cover",border:"3px solid "+cardBg}}/>
+            :<div style={{width:90,height:110,borderRadius:10,background:cardBg+"22",border:"3px solid "+cardBg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:48}}>{pet.avatar||"🐾"}</div>
+          }
+          <div style={{textAlign:"center",marginTop:6,fontSize:22}}>{huella}</div>
+        </div>
+        {/* Info */}
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontWeight:800,fontSize:20,color:cardBg,marginBottom:2}}>{pet.name}</div>
+          <div style={{fontSize:11,color:"#999",marginBottom:10,fontWeight:600,letterSpacing:0.5}}>{"CARNET DE IDENTIDAD"}</div>
+          {[
+            ["Especie:",pet.species||"—"],
+            ["Raza:",pet.breed||"—"],
+            ["Sexo:",( pet.sex||"—")+" "+sexIcon],
+            ["Color:",pet.color||"—"],
+            ["Nacimiento:",pet.dob?pet.dob.split("-").reverse().join("/"):"—"],
+            ["Peso:",pet.weight?pet.weight+" kg":"—"],
+          ].map(function(row){
+            return (
+              <div key={row[0]} style={{display:"flex",gap:6,marginBottom:3}}>
+                <span style={{fontSize:11,fontWeight:700,color:"#999",minWidth:72,flexShrink:0}}>{row[0]}</span>
+                <span style={{fontSize:11,color:"#333",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{row[1]}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {/* Barcode-style strip */}
+      <div style={{background:cardBg+"15",borderTop:"1px solid "+cardBg+"33",padding:"8px 16px",display:"flex",gap:4,alignItems:"center"}}>
+        {Array.from({length:30}).map(function(_,i){
+          var h=[2,3,5,2,4,3,2,5,2,3,4,2,3,2,5,3,2,4,3,2,5,2,3,4,2,3,2,5,3,2][i%30];
+          return <div key={i} style={{width:2,height:h*3,background:cardBg,borderRadius:1,opacity:0.6+((i%3)*0.1)}}/>;
+        })}
+      </div>
+      {/* Footer */}
+      <div style={{background:cardBg,padding:"10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",fontWeight:600}}>DUEÑO</div>
+          <div style={{fontSize:12,color:"#fff",fontWeight:700}}>{fullName(owner)}</div>
+          {owner&&owner.phone&&<div style={{fontSize:10,color:"rgba(255,255,255,0.8)"}}>{owner.phone}</div>}
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",fontWeight:600}}>ID MASCOTA</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.9)",fontFamily:"monospace",fontWeight:700}}>{pet.id.toUpperCase()}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CarnetModal(props) {
+  var pet=props.pet, owner=props.owner, C=props.C;
+  var s1=useState(false); var downloading=s1[0]; var setDownloading=s1[1];
+  var s2=useState(""); var msg=s2[0]; var setMsg=s2[1];
+
+  function downloadCarnet() {
+    setDownloading(true);
+    var el=document.getElementById("pet-carnet");
+    if(!el){setMsg("No se pudo generar el carnet.");setDownloading(false);return;}
+    // Use html2canvas-style: create a screenshot via DOM serialization
+    // Since we can't import html2canvas, use a CSS print approach
+    var printWin=window.open("","_blank","width=400,height=600");
+    if(!printWin){setMsg("Permite ventanas emergentes para descargar.");setDownloading(false);return;}
+    var styles='<style>body{margin:0;padding:20px;font-family:Nunito,sans-serif;background:#f5f5f5;display:flex;align-items:center;justify-content:center;min-height:100vh;} @media print{body{background:#fff;padding:0;}}</style>';
+    var googleFonts='<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>';
+    printWin.document.write("<!DOCTYPE html><html><head><title>Carnet - "+pet.name+"</title>"+googleFonts+styles+"</head><body>"+el.outerHTML+"</body></html>");
+    printWin.document.close();
+    setTimeout(function(){
+      printWin.focus();
+      printWin.print();
+      setDownloading(false);
+      setMsg("Se abrió el carnet para imprimir o guardar como PDF.");
+    },1000);
+  }
+
+  return (
+    <Modal title={"Carnet de "+pet.name} onClose={props.onClose} C={C}>
+      <p style={{color:C.textMid,fontSize:13,marginBottom:16,textAlign:"center"}}>Carnet de identidad virtual de tu mascota</p>
+      <PetCarnet pet={pet} owner={owner} C={C}/>
+      {msg&&<div style={{marginTop:12,padding:"8px 12px",background:C.greenLight,borderRadius:10,fontSize:12,color:C.green,fontWeight:600,textAlign:"center"}}>{msg}</div>}
+      <div style={{display:"flex",gap:10,marginTop:16}}>
+        <Btn onClick={downloadCarnet} disabled={downloading} full={true} C={C} variant="success">
+          {downloading?"Generando...":"📥 Imprimir / Guardar PDF"}
+        </Btn>
+        <Btn variant="ghost" onClick={props.onClose} full={true} C={C}>Cerrar</Btn>
+      </div>
+    </Modal>
+  );
+}
+function ProximasCitasCard(props) {
+  var upcoming=props.upcoming, getPet=props.getPet, getOwner=props.getOwner, C=props.C;
+  var s=useState(false); var open=s[0]; var setOpen=s[1];
+  return (
+    <div style={{borderRadius:16,border:"1px solid "+C.border,overflow:"hidden"}}>
+      <button onClick={function(){setOpen(function(o){return !o;});}} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px",background:C.surface,border:"none",cursor:"pointer",textAlign:"left"}}>
+        <h3 style={{fontWeight:800,color:C.brownDark,fontSize:14,margin:0}}>{"Próximas citas ("+(upcoming.length)+")"}</h3>
+        <span style={{color:C.brown,fontSize:18,fontWeight:700}}>{open?"▾":"▸"}</span>
+      </button>
+      {open&&(
+        <div style={{background:C.surface,borderTop:"1px solid "+C.border}}>
+          {upcoming.length===0
+            ?<p style={{color:C.textLight,fontSize:13,padding:"12px 20px"}}>No hay citas</p>
+            :upcoming.map(function(a){
+              var pet=getPet(a.petId), owner=getOwner(a.ownerId);
+              return (
+                <div key={a.id} style={{display:"flex",gap:10,alignItems:"center",padding:"10px 20px",borderBottom:"1px solid "+C.border}}>
+                  <PetAvatar photo={pet&&pet.photo} avatar={pet&&pet.avatar} size={32} C={C}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:700,fontSize:13,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pet&&pet.name}</div>
+                    <div style={{fontSize:11,color:C.textMid}}>{fmtDate(a.date)+" - "+a.time+" - "+fullName(owner)}</div>
+                  </div>
+                  <StatusBadge status={a.status} C={C}/>
+                </div>
+              );
+            })}
+        </div>
+      )}
+    </div>
+  );
+}
+function Dashboard(props) {
+  var pets=props.pets, records=props.records, users=props.users, appointments=props.appointments, C=props.C;
+  var isMobile=useIsMobile();
+  var owners=users.filter(function(u){return u.role==="owner";});
+  var thisMonth=new Date().toISOString().slice(0,7);
+  var monthRecs=records.filter(function(r){return r.date.startsWith(thisMonth);});
+  var upcoming=appointments.filter(function(a){return a.date>=today()&&a.status!=="cancelled";}).sort(function(a,b){return a.date.localeCompare(b.date)||a.time.localeCompare(b.time);}).slice(0,6);
+  var byType=["Consulta","Vacunación","Cirugía","Urgencia","Control"].map(function(t){return {type:t,count:records.filter(function(r){return r.type===t;}).length};}).filter(function(x){return x.count>0;});
+  var attRecs=records.filter(function(r){return r.attended===true&&r.duration;});
+  var avgDur=attRecs.length>0?Math.round(attRecs.reduce(function(s,r){return s+r.duration;},0)/attRecs.length):null;
+  var absentCount=records.filter(function(r){return r.attended===false;}).length;
+  function getPet(id){return byId(pets,id);}
+  function getOwner(id){return byId(users,id);}
+  return (
+    <div>
+      <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:isMobile?22:26,color:C.brownDark,marginBottom:4}}>Dashboard</h2>
+      <p style={{color:C.textMid,marginBottom:16,fontSize:13}}>{new Date().toLocaleDateString("es-PE",{weekday:"long",day:"2-digit",month:"long",year:"numeric"})}</p>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"repeat(4,1fr)",gap:12,marginBottom:16}}>
+        <StatCard icon="🐾" label="Pacientes"  value={pets.length}      color={C.brown} C={C}/>
+        <StatCard icon="👥" label="Dueños"     value={owners.length}    color={C.blue}  C={C}/>
+        <StatCard icon="📋" label="Historias"  value={records.length}   color={C.green} C={C}/>
+        <StatCard icon="📅" label="Este mes"   value={monthRecs.length} color={C.red}   C={C}/>
+      </div>
+      {(avgDur||absentCount>0)&&(
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:12,marginBottom:16}}>
+          {avgDur&&<StatCard icon="⏱️" label="Duración media/cita" value={avgDur+" min"} color={C.purple} C={C}/>}
+          {absentCount>0&&<StatCard icon="x" label="No asistieron" value={absentCount} color={C.yellow} C={C}/>}
+        </div>
+      )}
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:16}}>
+        <Card C={C}>
+          <h3 style={{fontWeight:800,color:C.brownDark,marginBottom:14,fontSize:14}}>Atenciones por tipo</h3>
+          {byType.length===0?<p style={{color:C.textLight,fontSize:13}}>Sin datos</p>:byType.map(function(item){
+            return (
+              <div key={item.type} style={{marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,fontSize:13}}><span style={{color:C.text}}>{item.type}</span><span style={{fontWeight:700,color:C.brown}}>{item.count}</span></div>
+                <div style={{background:C.peach,borderRadius:20,height:7}}><div style={{background:C.brown,borderRadius:20,height:7,width:(Math.round((item.count/records.length)*100))+"%",transition:"width .4s"}}/></div>
+              </div>
+            );
+          })}
+        </Card>
+        <ProximasCitasCard upcoming={upcoming} getPet={getPet} getOwner={getOwner} C={C}/>
+      </div>
+    </div>
+  );
+}
+function PatientsList(props) {
+  var pets=props.pets, users=props.users, records=props.records, C=props.C;
+  var isMobile=useIsMobile();
+  var s=useState(""); var search=s[0]; var setSearch=s[1];
+  var filtered=pets.filter(function(p){
+    var s=search.toLowerCase();
+    if(!s) return true;
+    if(p.name.toLowerCase().indexOf(s)>=0) return true;
+    if(p.species.toLowerCase().indexOf(s)>=0) return true;
+    var own=byId(users,p.ownerId);
+    if(own&&own.docNum&&own.docNum.indexOf(s)>=0) return true;
+    if(own&&fullName(own).toLowerCase().indexOf(s)>=0) return true;
+    return false;
+  });
+  function getOwner(id){return byId(users,id);}
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
+        <div><h2 style={{fontFamily:"'Playfair Display',serif",fontSize:isMobile?22:26,color:C.brownDark}}>Pacientes</h2><p style={{color:C.textMid,fontSize:13}}>{pets.length+" registrados"}</p></div>
+        <Btn C={C} onClick={props.onAdd}>+ Nueva mascota</Btn>
+      </div>
+      <div style={{marginBottom:14}}><input placeholder="Buscar por nombre, especie, dueño o N° doc..." value={search} onChange={function(e){setSearch(e.target.value);}}/></div>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(auto-fill,minmax(260px,1fr))",gap:14}}>
+        {filtered.map(function(pet){
+          var owner=getOwner(pet.ownerId), count=records.filter(function(r){return r.petId===pet.id;}).length, age=calcAge(pet.dob);
+          return (
+            <Card key={pet.id} C={C}>
+              <div style={{display:"flex",gap:12,alignItems:"flex-start"}}><PetAvatar photo={pet.photo} avatar={pet.avatar} size={54} C={C}/><div style={{flex:1,minWidth:0}}><div style={{fontWeight:800,fontSize:15,color:C.brownDark,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pet.name}</div><div style={{fontSize:13,color:C.textMid}}>{pet.species+(pet.breed?" - "+pet.breed:"")}</div>{age&&<div style={{fontSize:12,color:C.textLight}}>{age}</div>}<div style={{fontSize:12,color:C.textLight}}>{"Dueño: "+fullName(owner)}</div></div></div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:12,paddingTop:10,borderTop:"1px solid "+C.border}}>
+                <div style={{fontSize:12,color:C.textMid}}>{count+" hist."+(pet.weight?" - "+pet.weight+" kg":"")}</div>
+                <div style={{display:"flex",gap:6}}>
+                  <Btn small={true} variant="ghost" C={C} onClick={function(){props.onEdit(pet);}}>✏️</Btn>
+                  <Btn small={true} variant="ghost" C={C} onClick={function(){props.onCarnet&&props.onCarnet(pet);}} title="Generar carnet">🪪</Btn>
+                  <Btn small={true} variant="ghost" C={C} onClick={function(){props.onDelete(pet.id);}} style={{color:C.red}}>🗑️</Btn>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+        {filtered.length===0&&<p style={{color:C.textLight,gridColumn:"1/-1",textAlign:"center",padding:40}}>Sin resultados.</p>}
+      </div>
+    </div>
+  );
+}
+function RecordsList(props) {
+  var records=props.records, pets=props.pets, users=props.users||[], onUpdateRecord=props.onUpdateRecord||null, C=props.C;
+  var isMobile=useIsMobile();
+  var s1=useState(""); var search=s1[0]; var setSearch=s1[1];
+  var s2=useState("Todos"); var ftype=s2[0]; var setFtype=s2[1];
+  var TYPES=["Todos","Consulta","Vacunación","Cirugía","Urgencia","Control"];
+  var SPECIES=["Todas","Perro","Gato","Ave","Conejo","Reptil","Pez","Otro"];
+  var s3=useState("Todas"); var fspecies=s3[0]; var setFspecies=s3[1];
+  function getPet(id){return byId(pets,id);}
+  var filtered=records.filter(function(r){
+    var pet=getPet(r.petId);
+    var s=search.toLowerCase();
+    var ms=true;
+    if(s){
+      var owner=pet?byId(users,pet.ownerId):null;
+      var matchPet=pet&&pet.name.toLowerCase().indexOf(s)>=0;
+      var matchDiag=r.diagnosis.toLowerCase().indexOf(s)>=0;
+      var matchOwner=owner&&fullName(owner).toLowerCase().indexOf(s)>=0;
+      var matchDoc=owner&&owner.docNum&&owner.docNum.indexOf(s)>=0;
+      ms=matchPet||matchDiag||matchOwner||matchDoc;
+    }
+    var speciesMatch=fspecies==="Todas"||(function(){var _pet=getPet(r.petId);return _pet&&_pet.species===fspecies;})();
+    return ms&&(ftype==="Todos"||r.type===ftype)&&speciesMatch;
+  }).sort(function(a,b){return b.date.localeCompare(a.date);});
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
+        <div><h2 style={{fontFamily:"'Playfair Display',serif",fontSize:isMobile?22:26,color:C.brownDark}}>Historias Clínicas</h2><p style={{color:C.textMid,fontSize:13}}>{records.length+" registros"}</p></div>
+        <Btn C={C} onClick={props.onAdd} disabled={pets.length===0}>+ Nueva historia</Btn>
+      </div>
+      <div style={{display:"flex",gap:10,marginBottom:8,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:180}}><input placeholder="Buscar por mascota, diagnóstico, dueño o N° doc..." value={search} onChange={function(e){setSearch(e.target.value);}}/></div>
+        <select value={ftype} onChange={function(e){setFtype(e.target.value);}} style={{width:"auto",minWidth:130}}>{TYPES.map(function(t){return <option key={t}>{t}</option>;})}</select>
+      </div>
+      <div style={{display:"flex",gap:6,marginBottom:14,flexWrap:"wrap"}}>
+        {SPECIES.map(function(sp){
+          var active=fspecies===sp;
+          return <button key={sp} onClick={function(){setFspecies(sp);}} style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(active?C.brown:C.border),background:active?C.brown:"transparent",color:active?"#fff":C.textMid,fontSize:12,fontWeight:700,cursor:"pointer"}}>{sp}</button>;
+        })}
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {filtered.map(function(r){
+          var pet=getPet(r.petId);
+          return (
+            <Card key={r.id} C={C} style={{padding:"12px 14px"}}>
+              <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                <PetAvatar photo={pet&&pet.photo} avatar={pet&&pet.avatar} size={40} C={C}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:4}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><span style={{fontWeight:800,fontSize:14,color:C.brownDark}}>{pet&&pet.name}</span><Badge type={r.type}/>{r.attended===true&&<StatusBadge status="attended" C={C}/>}{r.attended===false&&<StatusBadge status="absent" C={C}/>}</div>
+                    {pet&&(function(){var own=null;for(var _i=0;_i<props.users.length;_i++){if(props.users[_i].id===pet.ownerId){own=props.users[_i];break;}} return own?<div style={{fontSize:11,color:C.textLight}}>{"Dueño: "+fullName(own)}</div>:null;})()}
+                    <div style={{display:"flex",gap:4}}><Btn small={true} variant="ghost" C={C} onClick={function(){props.onEdit(r);}}>✏️</Btn><Btn small={true} variant="ghost" C={C} onClick={function(){props.onDelete(r.id);}} style={{color:C.red}}>🗑️</Btn></div>
+                  </div>
+                  <div style={{fontSize:12,color:C.textLight,marginBottom:8}}>
+                  {fmtDate(r.date)+(r.weight?" - "+r.weight+" kg":"")+(r.duration?" - "+r.duration+" min":"")}
+                  {(function(){var pet2=getPet(r.petId);var own=null;return own?<span style={{marginLeft:8,background:C.tan+"22",color:C.brownDark,borderRadius:6,padding:"1px 6px",fontSize:11}}>{"👤 "+(own.docNum||"—")+" · "+fullName(own)}</span>:null;})()}
+                </div>
+                  <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:8}}>
+                    <div style={{background:C.peach,borderRadius:10,padding:"7px 10px"}}><div style={{fontSize:10,fontWeight:700,color:C.textMid,marginBottom:2}}>DIAGNOSTICO</div><div style={{fontSize:13,color:C.text}}>{r.diagnosis||"—"}</div></div>
+                    <div style={{background:C.greenLight,borderRadius:10,padding:"7px 10px"}}><div style={{fontSize:10,fontWeight:700,color:C.textMid,marginBottom:2}}>TRATAMIENTO</div><div style={{fontSize:13,color:C.text}}>{r.treatment||"—"}</div></div>
+                  </div>
+                  {r.items&&r.items.length>0&&<OwnerItemsDisplay items={r.items} record={r} onUpdateRecord={props.onUpdateRecord} C={C}/>}
+                  {r.nextVisit&&<div style={{marginTop:6,fontSize:12,background:C.blueLight,color:C.blue,borderRadius:8,padding:"4px 10px",display:"inline-block",fontWeight:700}}>{"Próxima: "+fmtDate(r.nextVisit)}</div>}
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+        {filtered.length===0&&<p style={{color:C.textLight,textAlign:"center",padding:40}}>Sin registros.</p>}
+      </div>
+    </div>
+  );
+}
+function MyPets(props) {
+  var pets=props.pets, records=props.records, C=props.C;
+  var isMobile=useIsMobile();
+  function getLast(id){var recs=records.filter(function(r){return r.petId===id;}).sort(function(a,b){return b.date.localeCompare(a.date);}); return recs.length>0?recs[0]:null;}
+  if(pets.length===0) return (
+    <div style={{textAlign:"center",padding:60}}>
+      <div style={{fontSize:56,marginBottom:12}}>🐾</div>
+      <h3 style={{color:C.brownDark,marginBottom:8}}>No tienes mascotas registradas</h3>
+      <p style={{color:C.textMid,fontSize:14}}>Contacta a tu veterinaria.</p>
+    </div>
+  );
+  return (
+    <div>
+      <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:isMobile?22:26,color:C.brownDark,marginBottom:4}}>Mis Mascotas</h2>
+      <p style={{color:C.textMid,fontSize:13,marginBottom:16}}>Toca una mascota para ver su historial</p>
+      <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(auto-fill,minmax(260px,1fr))",gap:14}}>
+        {pets.map(function(pet){
+          var last=getLast(pet.id), count=records.filter(function(r){return r.petId===pet.id;}).length, age=calcAge(pet.dob);
+          return (
+            <Card key={pet.id} C={C} style={{cursor:"pointer"}} onClick={function(){props.onSelect(pet);}}>
+              <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:12}}>
+                <PetAvatar photo={pet.photo} avatar={pet.avatar} size={60} C={C}/>
+                <div><div style={{fontWeight:800,fontSize:17,color:C.brownDark}}>{pet.name}</div><div style={{color:C.textMid,fontSize:13}}>{pet.species+(pet.breed?" - "+pet.breed:"")}</div>{age&&<div style={{fontSize:12,color:C.textLight}}>{age}</div>}</div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:10}}>
+                <div style={{background:C.peach,borderRadius:10,padding:"6px 4px",textAlign:"center"}}><div style={{fontSize:14}}>⚖️</div><div style={{fontSize:11,fontWeight:700,color:C.brown}}>{pet.weight?pet.weight+"kg":"—"}</div></div>
+                <div style={{background:C.peach,borderRadius:10,padding:"6px 4px",textAlign:"center"}}><div style={{fontSize:14}}>📋</div><div style={{fontSize:11,fontWeight:700,color:C.brown}}>{count+" hist."}</div></div>
+                <div style={{background:C.peach,borderRadius:10,padding:"6px 4px",textAlign:"center"}}><div style={{fontSize:14}}>🎨</div><div style={{fontSize:11,fontWeight:700,color:C.brown,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pet.color||"—"}</div></div>
+              </div>
+              {last&&<div style={{fontSize:12,color:C.textMid,borderTop:"1px solid "+C.border,paddingTop:8}}>{"Ultima: "+fmtDate(last.date)}</div>}
+              <div style={{display:"flex",gap:8,marginTop:10}}>
+                <Btn variant="outline" small={true} full={true} C={C} onClick={function(){props.onSelect(pet);}}>Ver historial</Btn>
+                <Btn variant="ghost" small={true} C={C} onClick={function(){props.onCarnet&&props.onCarnet(pet);}} title="Carnet">🪪</Btn>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OwnerItemsDisplay(props) {
+  var items=props.items, record=props.record, onUpdateRecord=props.onUpdateRecord, C=props.C;
+  var s1=useState(false); var uploading=s1[0]; var setUploading=s1[1];
+
+  async function handleAddFile(itemId,e) {
+    var files=Array.from(e.target.files||[]);
+    setUploading(true);
+    var updatedItems=items.map(function(x){return Object.assign({},x,{files:x.files?x.files.slice():[]});});
+    for(var _i=0;_i<files.length;_i++){
+      var f=files[_i];
+      if(f.size>3*1024*1024){alert("Máximo 3 MB por archivo.");continue;}
+      var b64=await toBase64(f);
+      var fEntry={id:genId(),file:b64,fileName:f.name};
+      updatedItems=updatedItems.map(function(x){return x.id===itemId?Object.assign({},x,{files:x.files.concat([fEntry])}):x;});
+    }
+    e.target.value="";
+    setUploading(false);
+    if(onUpdateRecord){
+      onUpdateRecord(Object.assign({},record,{items:updatedItems}));
+    }
+  }
+
+  function handleRemoveFile(itemId,fileId) {
+    var updatedItems=items.map(function(x){
+      return x.id===itemId?Object.assign({},x,{files:(x.files||[]).filter(function(f){return f.id!==fileId;})}):x;
+    });
+    if(onUpdateRecord) onUpdateRecord(Object.assign({},record,{items:updatedItems}));
+  }
+
+  return (
+    <div style={{marginBottom:8}}>
+      <div style={{fontSize:11,fontWeight:700,color:C.textMid,marginBottom:6}}>{"TRATAMIENTOS Y SOLICITUDES"}</div>
+      {items.map(function(item,idx){
+        var isSol=item.type==="solicitud";
+        var files=item.files||[];
+        var cl=isSol?C.purple:C.green;
+        var bg=isSol?C.purpleLight:C.greenLight;
+        return (
+          <div key={item.id||idx} style={{marginBottom:6,background:bg,borderRadius:8,padding:"7px 10px",border:"1px solid "+(isSol?C.purple+"33":C.green+"33")}}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:6}}>
+              <span style={{fontSize:11,fontWeight:800,color:cl,flexShrink:0,minWidth:18}}>{(idx+1)+"."}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,color:C.text,fontWeight:600}}>{item.text}</div>
+                {isSol&&(
+                  <div style={{marginTop:6}}>
+                    {files.map(function(f){
+                      return (
+                        <div key={f.id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                          <a href={f.file} download={f.fileName} style={{fontSize:11,color:C.green,fontWeight:700,textDecoration:"none",display:"flex",alignItems:"center",gap:3}}>
+                            <span>{"📎"}</span><span style={{...sOverflow,maxWidth:180}}>{f.fileName}</span>
+                          </a>
+                          {onUpdateRecord&&<button onClick={function(){handleRemoveFile(item.id,f.id);}} style={{background:"none",border:"none",color:C.red,cursor:"pointer",fontSize:12,padding:"0 2px",lineHeight:1}}>{"×"}</button>}
+                        </div>
+                      );
+                    })}
+                    {onUpdateRecord&&(
+                      <label style={{cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,marginTop:4}}>
+                        <div style={{background:C.purple,color:"#fff",borderRadius:8,padding:"4px 12px",fontSize:11,fontWeight:700}}>
+                          {uploading?"Subiendo...":files.length>0?"+ Agregar archivo":"📎 Adjuntar resultado"}
+                        </div>
+                        <input type="file" accept="image/*,application/pdf" style={{display:"none"}} multiple onChange={function(e){handleAddFile(item.id,e);}} disabled={uploading}/>
+                      </label>
+                    )}
+                    {files.length===0&&(
+                      <span style={{fontSize:11,color:C.yellow,fontWeight:700,background:C.yellowLight,borderRadius:6,padding:"2px 8px"}}>{"⏳ Pendiente de adjuntar"}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+function OwnerHistory(props) {
+  var pets=props.pets, records=props.records, selectedPet=props.selectedPet, C=props.C;
+  var isMobile=useIsMobile();
+  var petRecords=records.filter(function(r){return r.petId===(selectedPet&&selectedPet.id);}).sort(function(a,b){return b.date.localeCompare(a.date);});
+  return (
+    <div>
+      <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:isMobile?22:26,color:C.brownDark,marginBottom:12}}>Historial Clínico</h2>
+      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+        {pets.map(function(p){
+          var active=selectedPet&&selectedPet.id===p.id;
+          return <button key={p.id} onClick={function(){props.onSelectPet(p);}} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 14px",borderRadius:20,background:active?C.brown:C.peach,color:active?C.navIcon:C.brownDark,border:"none",fontWeight:700,fontSize:13,cursor:"pointer"}}>{p.avatar+" "+p.name}</button>;
+        })}
+      </div>
+      {!selectedPet?<p style={{color:C.textLight,textAlign:"center",padding:40}}>Selecciona una mascota.</p>:petRecords.length===0?<p style={{color:C.textLight,textAlign:"center",padding:40}}>Sin registros todavia.</p>:
+        <div>
+          {petRecords.map(function(r){
+            return (
+              <Card key={r.id} C={C} style={{marginBottom:14,padding:"12px 14px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:8}}><Badge type={r.type}/><span style={{fontSize:12,color:C.textLight,fontWeight:600}}>{fmtDate(r.date)}</span></div>
+                {r.weight&&<div style={{display:"inline-flex",alignItems:"center",gap:8,background:C.peach,borderRadius:12,padding:"7px 12px",marginBottom:10}}><span style={{fontSize:18}}>⚖️</span><div><div style={{fontSize:10,fontWeight:700,color:C.textMid}}>PESO EN ESTA VISITA</div><div style={{fontSize:17,fontWeight:800,color:C.brownDark}}>{r.weight+" kg"}</div></div></div>}
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:8,marginBottom:8}}>
+                  <div style={{background:C.blueLight,borderRadius:10,padding:"8px 10px"}}><div style={{fontSize:10,fontWeight:700,color:C.textMid,marginBottom:2}}>DIAGNOSTICO</div><div style={{fontSize:13,color:C.text}}>{r.diagnosis||"—"}</div></div>
+                  <div style={{background:C.greenLight,borderRadius:10,padding:"8px 10px"}}><div style={{fontSize:10,fontWeight:700,color:C.textMid,marginBottom:2}}>TRATAMIENTO</div><div style={{fontSize:13,color:C.text}}>{r.treatment||"—"}</div></div>
+                </div>
+                                {r.items&&r.items.length>0&&(
+                  <OwnerItemsDisplay items={r.items} record={r} onUpdateRecord={props.onUpdateRecord} C={C}/>
+                )}
+                {r.notes&&<div style={{fontSize:12,color:C.textMid,fontStyle:"italic",marginBottom:6}}>{r.notes}</div>}
+                {r.nextVisit&&<div style={{fontSize:12,background:C.blueLight,color:C.blue,borderRadius:8,padding:"4px 10px",display:"inline-block",fontWeight:700}}>{"Próxima: "+fmtDate(r.nextVisit)}</div>}
+              </Card>
+            );
+          })}
+        </div>
+      }
+    </div>
+  );
+}
+function PetForm(props) {
+  var owners=props.owners, existing=props.existing, isOwner=props.isOwner, C=props.C;
+  var AVATARS=["🐶","🐱","🐰","🐦","🐠","🦜","🐹","🦎","🐢"];
+  var s1=useState(existing&&existing.name||""); var petName=s1[0]; var setPetName=s1[1];
+  var s2=useState(existing&&existing.species||"Perro"); var species=s2[0]; var setSpecies=s2[1];
+  var s3=useState(existing&&existing.breed||""); var breed=s3[0]; var setBreed=s3[1];
+  var s4=useState(existing&&existing.dob||""); var dob=s4[0]; var setDob=s4[1];
+  var s5=useState(existing&&existing.weight||""); var weight=s5[0]; var setWeight=s5[1];
+  var s6=useState(existing&&existing.color||""); var color=s6[0]; var setColor=s6[1];
+  var s7=useState(existing&&existing.avatar||"🐶"); var avatar=s7[0]; var setAvatar=s7[1];
+  var s8=useState(existing&&existing.photo||""); var photo=s8[0]; var setPhoto=s8[1];
+  var s9=useState(existing&&existing.ownerId||(owners.length>0?owners[0].id:"")); var ownerId=s9[0]; var setOwnerId=s9[1];
+  var s10=useState(existing&&existing.sex||"Macho"); var sex=s10[0]; var setSex=s10[1];
+  var s11=useState({}); var errors=s11[0]; var setErrors=s11[1];
+  var s12=useState(false); var uploading=s12[0]; var setUploading=s12[1];
+  async function handlePhoto(e){ var file=e.target.files[0]; if(!file)return; if(file.size>2*1024*1024){setErrors(function(er){return Object.assign({},er,{photo:"Máximo 2 MB."});}); return;} setUploading(true); var b64=await toBase64(file); setPhoto(b64); setUploading(false); }
+  function submit(){
+    var e={};
+    if(!petName.trim()) e.name="Nombre obligatorio.";
+    if(!dob) e.dob="Fecha obligatoria.";
+    else if(new Date(dob)>new Date()) e.dob="No puede ser futura.";
+    if(!ownerId) e.ownerId="Selecciona un dueño.";
+    if(Object.keys(e).length){setErrors(e);return;}
+    props.onSave(Object.assign({},existing||{},{name:petName,species:species,breed:breed,sex:sex,dob:dob,weight:weight,color:color,avatar:avatar,photo:photo,ownerId:ownerId}));
+  }
+  return (
+    <Modal title={existing?"Editar mascota":"Nueva mascota"} onClose={props.onClose} C={C}>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",marginBottom:20}}>
+        <PetAvatar photo={photo} avatar={avatar} size={88} C={C}/>
+        <label htmlFor="pet-photo" style={{marginTop:10,cursor:"pointer"}}><div style={{background:C.peach,color:C.brownDark,borderRadius:10,padding:"7px 18px",fontSize:13,fontWeight:700}}>{uploading?"Cargando...":photo?"Cambiar foto":"Subir foto"}</div></label>
+        <input id="pet-photo" type="file" accept="image/*" onChange={handlePhoto} style={{display:"none"}}/>
+        {photo&&<button onClick={function(){setPhoto("");}} style={{marginTop:4,fontSize:12,color:C.red,background:"none",border:"none",cursor:"pointer",fontWeight:600}}>Quitar foto</button>}
+        {errors.photo&&<div style={{color:C.red,fontSize:12,marginTop:4}}>{errors.photo}</div>}
+      </div>
+      {isOwner&&existing?(
+        <div style={{background:C.yellowLight,borderRadius:10,padding:"10px 14px",marginBottom:14,fontSize:13,color:C.yellow,fontWeight:600}}>Solo puedes actualizar la foto. El veterinario edita los demas datos.</div>
+      ):(
+        <div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+            <Field label="Nombre *" error={errors.name} C={C}><input value={petName} onChange={function(e){setPetName(e.target.value);}} placeholder="Ej: Luna" className={errors.name?"err":""}/></Field>
+            <Field label="Especie" C={C}><select value={species} onChange={function(e){setSpecies(e.target.value);setBreed("");}}>{["Perro","Gato","Ave","Conejo","Reptil","Pez","Otro"].map(function(sp){return <option key={sp}>{sp}</option>;})}</select></Field>
+            <div style={{gridColumn:"1/-1"}}><Field label="Raza" C={C}><BreedSelect species={species} value={breed} onChange={setBreed}/></Field></div>
+            <Field label="Color" C={C}><input value={color} onChange={function(e){setColor(e.target.value);}} placeholder="Ej: Dorado"/></Field>
+            <Field label="Sexo" C={C}><select value={sex} onChange={function(e){setSex(e.target.value);}}><option value="Macho">Macho</option><option value="Hembra">Hembra</option><option value="No determinado">No determinado</option></select></Field>
+            <Field label="Fecha de nacimiento *" error={errors.dob} C={C}><input type="date" value={dob} onChange={function(e){setDob(e.target.value);}} max={today()} className={errors.dob?"err":""}/></Field>
+            <Field label="Peso (kg)" C={C}><input value={weight} onChange={function(e){setWeight(e.target.value);}} placeholder="Ej: 4.5" inputMode="decimal"/></Field>
+          </div>
+          {dob&&<div style={{background:C.greenLight,borderRadius:10,padding:"8px 14px",marginBottom:14,fontSize:13,color:C.green,fontWeight:700}}>{"Edad: "+calcAge(dob)}</div>}
+          <Field label="Dueño *" error={errors.ownerId} C={C}><select value={ownerId} onChange={function(e){setOwnerId(e.target.value);}} className={errors.ownerId?"err":""}><option value="">Seleccionar</option>{owners.map(function(o){return <option key={o.id} value={o.id}>{fullName(o)}</option>;})}</select></Field>
+          {!photo&&<Field label="Emoji" C={C}><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{AVATARS.map(function(a){return <button key={a} onClick={function(){setAvatar(a);}} style={{fontSize:22,background:avatar===a?C.peach:C.surface,border:"2px solid "+(avatar===a?C.brown:C.border),borderRadius:8,padding:4,cursor:"pointer"}}>{a}</button>;})}</div></Field>}
+        </div>
+      )}
+      <div style={{display:"flex",gap:10,marginTop:8}}><Btn onClick={submit} full={true} C={C}>Guardar</Btn><Btn variant="ghost" onClick={props.onClose} full={true} C={C}>Cancelar</Btn></div>
+    </Modal>
+  );
+}
+
+function TreatmentItemsField(props) {
+  var items=props.items, itemText=props.itemText, itemType=props.itemType, C=props.C;
+  var onItemTextChange=props.onItemTextChange, onItemTypeChange=props.onItemTypeChange;
+  var onAdd=props.onAdd, onRemove=props.onRemove, onAddFile=props.onAddFile, onRemoveFile=props.onRemoveFile;
+  return (
+    <div style={{marginBottom:14}}>
+      <label style={{color:C.brownDark,fontSize:13,fontWeight:700,display:"block",marginBottom:6}}>{"Tratamientos y solicitudes"}</label>
+      {items.map(function(item,idx){
+        var isSol=item.type==="solicitud";
+        var bg=isSol?C.purpleLight:C.greenLight;
+        var cl=isSol?C.purple:C.green;
+        var ic=isSol?"📋":"💊";
+        var files=item.files||[];
+        return (
+          <div key={item.id} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:8,background:bg,borderRadius:10,padding:"10px 12px",border:"1px solid "+(isSol?C.purple+"44":C.green+"44")}}>
+            <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0,marginTop:2}}>
+              <span style={{fontSize:12,fontWeight:800,color:cl}}>{(idx+1)+"."}</span>
+              <span style={{fontSize:16}}>{ic}</span>
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,color:C.text,fontWeight:600,marginBottom:isSol?6:0}}>{item.text}</div>
+              {isSol&&(
+                <div>
+                  {files.map(function(f){
+                    return (
+                      <div key={f.id} style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,background:"rgba(255,255,255,0.6)",borderRadius:6,padding:"3px 8px"}}>
+                        <span style={{fontSize:11,color:C.green,fontWeight:700,flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{"📎 "+f.fileName}</span>
+                        <button onClick={function(){onRemoveFile&&onRemoveFile(item.id,f.id);}} style={{background:"none",border:"none",color:C.red,cursor:"pointer",fontSize:13,lineHeight:1,padding:"1px 3px",flexShrink:0}}>{"×"}</button>
+                      </div>
+                    );
+                  })}
+                  <label style={{cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6,marginTop:2}}>
+                    <div style={{background:C.purple,color:"#fff",borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
+                      <span>{"📎"}</span>
+                      <span>{files.length>0?"+ Agregar archivo":"Adjuntar resultado"}</span>
+                    </div>
+                    <span style={{fontSize:10,color:C.textLight}}>{"PDF/JPG/PNG · máx 3MB"}</span>
+                    <input type="file" accept="image/*,application/pdf" style={{display:"none"}} multiple onChange={function(e){onAddFile&&onAddFile(item.id,e);}}/>
+                  </label>
+                </div>
+              )}
+            </div>
+            <button onClick={function(){onRemove(item.id);}} style={{background:"none",border:"none",color:C.red,fontSize:18,cursor:"pointer",flexShrink:0,lineHeight:1,padding:2}}>{"×"}</button>
+          </div>
+        );
+      })}
+      <div style={{background:C.surface,borderRadius:12,border:"1px solid "+C.border,padding:12,marginTop:4}}>
+        <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>
+          {["tratamiento","solicitud"].map(function(t){
+            var active=itemType===t;
+            var ic=t==="tratamiento"?"💊 Tratamiento":"📋 Solicitud doc.";
+            return <button key={t} type="button" onClick={function(){onItemTypeChange(t);}} style={{padding:"6px 14px",borderRadius:20,border:"1.5px solid "+(active?C.brown:C.border),background:active?C.brown:"transparent",color:active?"#fff":C.textMid,fontSize:12,fontWeight:700,cursor:"pointer"}}>{ic}</button>;
+          })}
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <input
+            value={itemText}
+            onChange={function(e){onItemTextChange(e.target.value);}}
+            onKeyDown={function(e){if(e.key==="Enter"){e.preventDefault();onAdd();}}}
+            placeholder={itemType==="solicitud"?"Ej: Electrocardiograma, Radiografía...":"Ej: 250ml Inyección A, 1 tableta Panadol..."}
+            style={{flex:1,fontSize:14}}
+          />
+          <button type="button" onClick={onAdd} style={{padding:"0 16px",background:C.brown,border:"none",borderRadius:10,color:"#fff",fontWeight:700,fontSize:18,cursor:"pointer",flexShrink:0}}>{"+"}</button>
+        </div>
+        <div style={{fontSize:11,color:C.textLight,marginTop:4}}>{"Presiona Enter o + para agregar"}</div>
+      </div>
+    </div>
+  );
+}
+
+function PetSearchField(props) {
+  var pets=props.pets, users=props.users||[], C=props.C;
+  var value=props.value, onChange=props.onChange;
+  var search=props.search, onSearch=props.onSearch;
+  var error=props.error;
+  var s1=useState(false); var focused=s1[0]; var setFocused=s1[1];
+
+  var filtered=pets.filter(function(p){
+    if(!search) return true;
+    var owner=byId(users,p.ownerId);
+    var doc=(owner&&owner.docNum)||"";
+    var nm=fullName(owner).toLowerCase();
+    var pnm=p.name.toLowerCase();
+    var srch=search.toLowerCase();
+    return doc.indexOf(srch)>=0||nm.indexOf(srch)>=0||pnm.indexOf(srch)>=0;
+  });
+
+  var selectedPet=byId(pets,value);
+  var selectedOwner=selectedPet?byId(users,selectedPet.ownerId):null;
+
+  function selectPet(pet) {
+    onChange(pet.id);
+    onSearch("");
+    setFocused(false);
+  }
+
+  return (
+    <div style={{marginBottom:14}}>
+      <label style={{color:C.brownDark,fontSize:13,fontWeight:700,display:"block",marginBottom:5}}>{"Paciente *"}</label>
+      {/* Selected chip */}
+      {selectedPet&&!focused&&(
+        <div style={{display:"flex",alignItems:"center",gap:10,background:C.peach,borderRadius:12,padding:"10px 14px",marginBottom:6,border:"2px solid "+C.brown,cursor:"pointer"}} onClick={function(){setFocused(true);onSearch("");}}>
+          <PetAvatar photo={selectedPet.photo} avatar={selectedPet.avatar} size={40} C={C}/>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontWeight:800,fontSize:14,color:C.brownDark}}>{selectedPet.name}</div>
+            <div style={{fontSize:12,color:C.textMid}}>{selectedPet.species+" - "+selectedPet.breed}</div>
+            {selectedOwner&&<div style={{fontSize:11,color:C.textLight}}>{(selectedOwner.docNum||"—")+" · "+fullName(selectedOwner)}</div>}
+          </div>
+          <span style={{fontSize:11,color:C.brown,fontWeight:700}}>✏️ Cambiar</span>
+        </div>
+      )}
+      {/* Search input */}
+      {(!selectedPet||focused)&&(
+        <div>
+          <div style={{position:"relative",marginBottom:6}}>
+            <input
+              value={search}
+              onChange={function(e){onSearch(e.target.value);if(!focused)setFocused(true);}}
+              onFocus={function(){setFocused(true);}}
+              placeholder="Buscar por N° doc., nombre del dueño o mascota..."
+              className={error?"err":""}
+              style={{paddingLeft:36}}
+              autoComplete="off"
+            />
+            <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:14,color:C.textLight}}>{"🔍"}</span>
+          </div>
+          {focused&&filtered.length===0&&search.length>0&&(
+            <div style={{background:C.surface,border:"1px solid "+C.border,borderRadius:12,padding:"12px 16px",textAlign:"center",color:C.textLight,fontSize:13}}>
+              Sin resultados para "{search}"
+            </div>
+          )}
+          {focused&&filtered.length>0&&(
+            <div style={{background:C.surface,border:"1px solid "+C.border,borderRadius:12,overflow:"hidden",maxHeight:220,overflowY:"auto",boxShadow:"0 4px 16px rgba(0,0,0,0.08)"}}>
+              {filtered.map(function(p){
+                var owner=null;
+                for(var _i=0;_i<users.length;_i++){if(users[_i].id===p.ownerId){owner=users[_i];break;}}
+                var docNum=(owner&&owner.docNum)||"—";
+                var isSelected=p.id===value;
+                return (
+                  <div key={p.id} onClick={function(){selectPet(p);}}
+                    style={{display:"flex",gap:10,alignItems:"center",padding:"10px 14px",borderBottom:"1px solid "+C.border,background:isSelected?C.peach:"transparent",cursor:"pointer"}}>
+                    <PetAvatar photo={p.photo} avatar={p.avatar} size={38} C={C}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:700,fontSize:13,color:C.brownDark}}>{p.name}</div>
+                      <div style={{fontSize:11,color:C.textMid}}>{p.species+" - "+p.breed}</div>
+                      <div style={{fontSize:11,color:C.textLight,display:"flex",gap:8,flexWrap:"wrap",marginTop:2}}>
+                        <span style={{background:C.tan+"33",color:C.brownDark,borderRadius:6,padding:"1px 6px",fontWeight:700}}>{"📄 "+docNum}</span>
+                        <span>{fullName(owner)}</span>
+                      </div>
+                    </div>
+                    {isSelected&&<span style={{color:C.green,fontSize:18}}>{"✅"}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+      {error&&<div style={{color:C.red,fontSize:12,marginTop:4,fontWeight:600}}>{"⚠ "+error}</div>}
+    </div>
+  );
+}
+function RecordForm(props) {
+  var pets=props.pets, users=props.users||[], vetId=props.vetId, existing=props.existing, C=props.C;
+  var TYPES=["Consulta","Vacunación","Cirugía","Urgencia","Control"];
+  var s1=useState(existing&&existing.petId||(pets.length>0?pets[0].id:"")); var petId=s1[0]; var setPetId=s1[1];
+  var s1b=useState(""); var petSearch=s1b[0]; var setPetSearch=s1b[1];
+  var s2=useState(existing&&existing.date||today()); var recDate=s2[0]; var setRecDate=s2[1];
+  var s3=useState(existing&&existing.type||"Consulta"); var type=s3[0]; var setType=s3[1];
+  var s4=useState(existing&&existing.diagnosis||""); var diagnosis=s4[0]; var setDiagnosis=s4[1];
+  var s5=useState(existing&&existing.treatment||""); var treatment=s5[0]; var setTreatment=s5[1];
+  var s6=useState(existing&&existing.notes||""); var notes=s6[0]; var setNotes=s6[1];
+  var s7=useState(existing&&existing.nextVisit||""); var nextVisit=s7[0]; var setNextVisit=s7[1];
+  var s8=useState(existing&&existing.weight||""); var recWeight=s8[0]; var setRecWeight=s8[1];
+  var s9=useState(existing&&existing.attended!=null?existing.attended:null); var attended=s9[0]; var setAttended=s9[1];
+  var s10=useState(existing&&existing.duration||""); var duration=s10[0]; var setDuration=s10[1];
+  var s11=useState({}); var errors=s11[0]; var setErrors=s11[1];
+  var s12=useState(existing&&existing.items&&existing.items.length>0?existing.items:[]); var items=s12[0]; var setItems=s12[1];
+  var s13=useState(""); var itemText=s13[0]; var setItemText=s13[1];
+  var s14=useState("tratamiento"); var itemType=s14[0]; var setItemType=s14[1];
+  function addItem(){ if(!itemText.trim())return; setItems(function(prev){return prev.concat([{id:genId(),text:itemText.trim(),type:itemType,files:[]}]);}); setItemText(""); }
+  function removeItem(id){ setItems(function(prev){return prev.filter(function(x){return x.id!==id;});}); }
+  async function handleItemFile(itemId,e){
+    var files=Array.from(e.target.files||[]);
+    for(var _i=0;_i<files.length;_i++){
+      var f=files[_i];
+      if(f.size>3*1024*1024){alert("Máximo 3 MB por archivo.");continue;}
+      var b64=await toBase64(f);
+      var fEntry={id:genId(),file:b64,fileName:f.name};
+      setItems(function(prev){return prev.map(function(x){return x.id===itemId?Object.assign({},x,{files:(x.files||[]).concat([fEntry])}):x;});});
+    }
+    e.target.value="";
+  }
+  function removeItemFile(itemId,fileId){
+    setItems(function(prev){return prev.map(function(x){return x.id===itemId?Object.assign({},x,{files:(x.files||[]).filter(function(f){return f.id!==fileId;})}):x;});});
+  }
+    function submit(){
+    var e={};
+    if(!petId) e.petId="Selecciona un paciente.";
+    if(!recDate) e.date="Fecha obligatoria.";
+    if(!diagnosis.trim()) e.diagnosis="Diagnóstico obligatorio.";
+    if(Object.keys(e).length){setErrors(e);return;}
+    props.onSave(Object.assign({},existing||{},{petId:petId,date:recDate,type:type,diagnosis:diagnosis,treatment:treatment,notes:notes,nextVisit:nextVisit,weight:recWeight,vetId:vetId,attended:attended,duration:duration?parseInt(duration):null,items:items}));
+  }
+  return (
+    <Modal title={existing?"Editar historia":"Nueva historia clínica"} onClose={props.onClose} C={C}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+        <PetSearchField pets={pets} users={users} value={petId} onChange={function(id){setPetId(id);}} search={petSearch} onSearch={setPetSearch} error={errors.petId} C={C}/>
+        <Field label="Tipo" C={C}><select value={type} onChange={function(e){setType(e.target.value);}}>{TYPES.map(function(t){return <option key={t}>{t}</option>;})}</select></Field>
+        <Field label="Fecha *" error={errors.date} C={C}><input type="date" value={recDate} onChange={function(e){setRecDate(e.target.value);}} max={today()} className={errors.date?"err":""}/></Field>
+        <Field label="Peso (kg)" C={C}><input value={recWeight} onChange={function(e){setRecWeight(e.target.value);}} placeholder="Ej: 12.5" inputMode="decimal"/></Field>
+        <div style={{gridColumn:"1/-1"}}><Field label="Diagnóstico *" error={errors.diagnosis} C={C}><input value={diagnosis} onChange={function(e){setDiagnosis(e.target.value);}} placeholder="Ej: Otitis externa" className={errors.diagnosis?"err":""}/></Field></div>
+        <div style={{gridColumn:"1/-1"}}><Field label="Próxima visita" C={C}>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <input type="date" value={nextVisit} onChange={function(e){setNextVisit(e.target.value);}} min={today()} style={{flex:1}}/>
+          {nextVisit&&<button type="button" onClick={function(){setNextVisit("");}} title="Borrar fecha" style={{background:"none",border:"none",color:C.red,fontSize:20,cursor:"pointer",padding:"0 4px",lineHeight:1,flexShrink:0}}>{"×"}</button>}
+        </div>
+      </Field></div>
+      </div>
+      <TreatmentItemsField items={items} itemText={itemText} itemType={itemType} onItemTextChange={setItemText} onItemTypeChange={setItemType} onAdd={addItem} onRemove={removeItem} onAddFile={handleItemFile} onRemoveFile={removeItemFile} C={C}/>
+      <Field label="Notas" C={C}><textarea rows={2} value={notes} onChange={function(e){setNotes(e.target.value);}}/></Field>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+        <Field label="Fue atendido?" C={C}><select value={attended===null?"":attended?"si":"no"} onChange={function(e){setAttended(e.target.value===""?null:e.target.value==="si");}}><option value="">Sin marcar</option><option value="si">Si, atendido</option><option value="no">No asistio</option></select></Field>
+        <Field label="Duración (min)" C={C}><input type="number" value={duration} onChange={function(e){setDuration(e.target.value);}} placeholder="Ej: 30" min={1} max={240}/></Field>
+      </div>
+      <div style={{display:"flex",gap:10,marginTop:8}}><Btn onClick={submit} full={true} C={C}>Guardar</Btn><Btn variant="ghost" onClick={props.onClose} full={true} C={C}>Cancelar</Btn></div>
+    </Modal>
+  );
+}
+function ApptForm(props) {
+  var pets=props.pets, owners=props.owners, existing=props.existing, allAppts=props.allAppts, blockedDays=props.blockedDays, allowBlocked=props.allowBlocked, C=props.C;
+  var TYPES=["Consulta","Vacunación","Cirugía","Urgencia","Control"];
+  var s1=useState(existing&&existing.petId||(pets.length>0?pets[0].id:"")); var petId=s1[0]; var setPetId=s1[1];
+  var s1b=useState(""); var petSearch=s1b[0]; var setPetSearch=s1b[1];
+  var s2=useState(existing&&existing.date||""); var date=s2[0]; var setDate=s2[1];
+  var s3=useState(existing&&existing.time||""); var time=s3[0]; var setTime=s3[1];
+  var s4=useState(existing&&existing.type||"Consulta"); var type=s4[0]; var setType=s4[1];
+  var s5=useState(existing&&existing.notes||""); var notes=s5[0]; var setNotes=s5[1];
+  var s6=useState({}); var errors=s6[0]; var setErrors=s6[1];
+  var isBlocked=!allowBlocked&&blockedDays.indexOf(date)>=0;
+  var usedSlots=useMemo(function(){ return allAppts.filter(function(a){return a.date===date&&a.status!=="cancelled"&&a.id!==(existing&&existing.id);}).map(function(a){return a.time;}); },[allAppts,date,existing]);
+  var freeSlots=useMemo(function(){ return TIME_SLOTS.filter(function(t){return usedSlots.indexOf(t)<0;}); },[usedSlots]);
+  function submit(){
+    var e={};
+    if(!petId) e.petId="Selecciona una mascota.";
+    if(!date) e.date="Fecha obligatoria.";
+    else if(date<today()) e.date="No puede ser pasada.";
+    else if(isBlocked) e.date="Dia bloqueado.";
+    if(!time) e.time="Selecciona un horario.";
+    if(Object.keys(e).length){setErrors(e);return;}
+    props.onSave(Object.assign({},existing||{},{petId:petId,date:date,time:time,type:type,notes:notes}));
+  }
+  var selPet=byId(pets,petId);
+  var selOwner=selPet?byId(owners,selPet.ownerId):null;
+  return (
+    <Modal title={existing?"Editar cita":"Nueva cita"} onClose={props.onClose} C={C}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+        <Field label="Mascota *" error={errors.petId} C={C}><select value={petId} onChange={function(e){setPetId(e.target.value);}} className={errors.petId?"err":""}><option value="">Seleccionar</option>{pets.map(function(p){return <option key={p.id} value={p.id}>{p.name}</option>;})}</select></Field>
+        <Field label="Tipo" C={C}><select value={type} onChange={function(e){setType(e.target.value);}}>{TYPES.map(function(t){return <option key={t}>{t}</option>;})}</select></Field>
+        <div style={{gridColumn:"1/-1"}}><Field label="Fecha *" error={errors.date} C={C}><input type="date" value={date} onChange={function(e){setDate(e.target.value);setTime("");}} min={today()} className={errors.date?"err":""}/></Field></div>
+      </div>
+      {isBlocked&&<div style={{background:C.redLight,borderRadius:10,padding:"10px 14px",marginBottom:14,color:C.red,fontSize:13,fontWeight:700}}>Dia bloqueado.</div>}
+      {date&&!isBlocked&&(
+        <Field label={freeSlots.length===0?"Sin disponibilidad":"Horario *"} error={errors.time} C={C}>
+          {freeSlots.length===0?<p style={{color:C.red,fontSize:13}}>Sin horarios disponibles.</p>
+            :<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{freeSlots.map(function(t){return <button key={t} type="button" onClick={function(){setTime(t);}} style={{padding:"6px 10px",borderRadius:8,border:"1.5px solid "+(time===t?C.brown:C.border),background:time===t?C.brown:"transparent",color:time===t?"#fff":C.text,fontSize:12,fontWeight:700,cursor:"pointer"}}>{t}</button>;})}</div>}
+        </Field>
+      )}
+      {selOwner&&<div style={{background:C.blueLight,borderRadius:10,padding:"8px 12px",marginBottom:14,fontSize:13,color:C.blue,fontWeight:600}}>{fullName(selOwner)+" - "+selOwner.email}</div>}
+      <Field label="Notas" C={C}><textarea rows={2} value={notes} onChange={function(e){setNotes(e.target.value);}} placeholder="Indicaciones..."/></Field>
+      <div style={{display:"flex",gap:10,marginTop:8}}><Btn onClick={submit} full={true} C={C} disabled={isBlocked}>Guardar cita</Btn><Btn variant="ghost" onClick={props.onClose} full={true} C={C}>Cancelar</Btn></div>
+    </Modal>
+  );
+}
+function App() {
+  var dark=useDark(); var C=palette(dark);
+  var s0=useState(false); var ready=s0[0]; var setReady=s0[1];
+  var s1=useState(null); var user=s1[0]; var setUser=s1[1];
+  var s2=useState([]); var users=s2[0]; var setUsers=s2[1];
+  var s3=useState([]); var pets=s3[0]; var setPets=s3[1];
+  var s4=useState([]); var records=s4[0]; var setRecords=s4[1];
+  var s5=useState([]); var appointments=s5[0]; var setAppointments=s5[1];
+  var s6=useState([]); var apptReqs=s6[0]; var setApptReqs=s6[1];
+  var s7=useState([]); var notifs=s7[0]; var setNotifs=s7[1];
+  var s8=useState([]); var blockedDays=s8[0]; var setBlockedDays=s8[1];
+  var s9=useState(""); var tab=s9[0]; var setTab=s9[1];
+  var s10=useState(null); var modal=s10[0]; var setModal=s10[1];
+  var s11=useState(null); var selPet=s11[0]; var setSelPet=s11[1];
+  var s12=useState(null); var pendingAppt=s12[0]; var setPendingAppt=s12[1];
+  var s13=useState(null); var clinicalModal=s13[0]; var setClinicalModal=s13[1];
+  var s14=useState(null); var carnetModal=s14[0]; var setCarnetModal=s14[1];
+  var tt=useToast(); var toasts=tt.toasts; var push=tt.push;
+  var recentKeys=useMemo(function(){return new Set();},[]);
+  useEffect(function(){
+    (async function(){
+      var u=await sGet(KEYS.users); if(!u){u=SEED_USERS;await sSet(KEYS.users,u);}
+      var p=await sGet(KEYS.pets); if(!p){p=SEED_PETS;await sSet(KEYS.pets,p);}
+      var r=await sGet(KEYS.records); if(!r){r=SEED_RECORDS;await sSet(KEYS.records,r);}
+      var a=await sGet(KEYS.appts); if(!a){a=SEED_APPTS;await sSet(KEYS.appts,a);}
+      var rq=await sGet(KEYS.reqs); if(!rq){rq=SEED_REQS;await sSet(KEYS.reqs,rq);}
+      var n=await sGet(KEYS.notifs); if(!n){n=[];await sSet(KEYS.notifs,n);}
+      var bd=await sGet(KEYS.blocked); if(!bd){bd=[];await sSet(KEYS.blocked,bd);}
+      setUsers(u);setPets(p);setRecords(r);setAppointments(a);setApptReqs(rq);setNotifs(n);setBlockedDays(bd);
+      var sid=await sGet(KEYS.session);
+      if(sid){var su=byId(u,sid); if(su){setUser(su);setTab(su.role==="admin"?"dashboard":su.role==="vet"?"dashboard":"mypets");}}
+      setReady(true);
+    })();
+  },[]);
+  async function pushNotif(toId,msg,icon,extra){
+    icon=icon||"🔔"; extra=extra||{};
+    var key=toId+"|"+msg.slice(0,40);
+    if(recentKeys.has(key))return;
+    recentKeys.add(key); setTimeout(function(){recentKeys.delete(key);},8000);
+    var n=Object.assign({id:genId(),toId:toId,msg:msg,icon:icon,ts:Date.now(),read:false},extra);
+    setNotifs(function(prev){var next=prev.concat([n]);sSet(KEYS.notifs,next);return next;});
+  }
+  function markRead(ids){ setNotifs(function(prev){var next=prev.map(function(n){return ids.indexOf(n.id)>=0?Object.assign({},n,{read:true}):n;});sSet(KEYS.notifs,next);return next;}); }
+  function handleNotifAction(notif){
+    if(notif.actionId){
+      var appt=byId(appointments,notif.actionId);
+      if(appt&&appt.status==="pending") setPendingAppt(appt);
+      else push("Esta cita ya fue procesada","warning");
+    }
+  }
+  function handleLogin(u,allUsers){ setUsers(allUsers); setUser(u); setTab(u.role==="admin"?"dashboard":u.role==="vet"?"dashboard":"mypets"); }
+  async function handleLogout(){ await sSet(KEYS.session,null); setUser(null); setTab(""); setModal(null); setSelPet(null); setPendingAppt(null); setClinicalModal(null); }
+  async function savePet(f){
+    var np=f.id?pets.map(function(p){return p.id===f.id?f:p;}):pets.concat([Object.assign({},f,{id:"p"+genId()})]);
+    await sSet(KEYS.pets,np); setPets(np); setModal(null); push(f.id?"Mascota actualizada":"Mascota registrada");
+  }
+  async function deletePet(id){
+    if(!confirm("Eliminar esta mascota y sus historias?"))return;
+    var np=pets.filter(function(p){return p.id!==id;}); await sSet(KEYS.pets,np); setPets(np);
+    var nr=records.filter(function(r){return r.petId!==id;}); await sSet(KEYS.records,nr); setRecords(nr);
+  }
+  async function saveRecord(f){
+    var nr=f.id?records.map(function(r){return r.id===f.id?f:r;}):records.concat([Object.assign({},f,{id:"r"+genId()})]);
+    await sSet(KEYS.records,nr); setRecords(nr); setModal(null); push(f.id?"Historia actualizada":"Historia guardada");
+  }
+  async function deleteRecord(id){
+    if(!confirm("Eliminar este registro?"))return;
+    var nr=records.filter(function(r){return r.id!==id;}); await sSet(KEYS.records,nr); setRecords(nr);
+  }
+  async function saveAppt(f){
+    var pet=byId(pets,f.petId);
+    var owner=pet?byId(users,pet.ownerId):null;
+    var isNew=!f.id;
+    var newA;
+    if(isNew){
+      var newAppt=Object.assign({},f,{id:"a"+genId(),ownerId:pet&&pet.ownerId,vetId:"u1",status:"pending",attended:null});
+      newA=appointments.concat([newAppt]);
+      if(owner){ await pushNotif(owner.id,"Nueva cita: "+fmtDate(f.date)+" "+f.time+" hs ("+f.type+")","📅",{actionId:newAppt.id}); simEmail(owner.email,"Nueva cita - "+(pet&&pet.name),push); simWA(owner.phone,"Nueva cita "+fmtDate(f.date),push); }
+    } else {
+      newA=appointments.map(function(a){return a.id===f.id?Object.assign({},a,f):a;});
+    }
+    await sSet(KEYS.appts,newA); setAppointments(newA); setModal(null); push(isNew?"Cita programada":"Cita actualizada");
+  }
+  async function cancelAppt(a,mode){
+    if(mode==="delete"){if(!confirm("Eliminar permanentemente?"))return; var na0=appointments.filter(function(x){return x.id!==a.id;}); await sSet(KEYS.appts,na0); setAppointments(na0); push("Cita eliminada"); return;}
+    if(!confirm("Cancelar esta cita?"))return;
+    var na=appointments.map(function(x){return x.id===a.id?Object.assign({},x,{status:"cancelled"}):x;});
+    await sSet(KEYS.appts,na); setAppointments(na);
+    var pet=byId(pets,a.petId);
+    var owner=byId(users,a.ownerId);
+    var vet=byId(users,a.vetId);
+    if(mode==="owner"){ if(vet){await pushNotif(vet.id,fullName(owner)+" rechazo la cita de "+(pet&&pet.name),"❌");simEmail(vet.email,"Cita rechazada",push);} }
+    else { if(owner){await pushNotif(owner.id,"Tu cita del "+fmtDate(a.date)+" fue cancelada","❌");simEmail(owner.email,"Cita cancelada",push);simWA(owner.phone,"Cita cancelada",push);} }
+    push("Cita cancelada");
+  }
+  async function rescheduleAppt(a,mode){
+    if(mode==="confirmed"){
+      var na=appointments.map(function(x){return x.id===a.id?Object.assign({},x,{status:"confirmed"}):x;});
+      await sSet(KEYS.appts,na); setAppointments(na);
+      var pet=byId(pets,a.petId);
+      var vet=byId(users,a.vetId);
+      if(vet){await pushNotif(vet.id,fullName(user)+" confirmo la cita de "+(pet&&pet.name),"✅");simEmail(vet.email,"Cita confirmada",push);}
+      push("Cita confirmada");
+    } else {
+      // Notify vet that owner is rescheduling
+      var _pet2=byId(pets,a.petId);
+      var _vet2=byId(users,a.vetId);
+      if(_vet2){ await pushNotif(_vet2.id,fullName(user)+" solicita reprogramar la cita de "+(_pet2&&_pet2.name)+" del "+fmtDate(a.date)+" "+a.time,"🔄"); simEmail(_vet2.email,"Solicitud de reprogramación",push); }
+      setModal({type:"apptForm",data:Object.assign({},a,{id:null,status:"pending",date:"",time:""})});
+    }
+  }
+  var confirmReq=useCallback(async function(apptIds){
+    var targets=appointments.filter(function(a){return apptIds.indexOf(a.id)>=0;});
+    var count=0;
+    for(var i=0;i<targets.length;i++){
+      var a=targets[i];
+      var pet=byId(pets,a.petId);
+      var owner=byId(users,a.ownerId);
+      if(owner){await pushNotif(owner.id,"Dr. German solicita confirmar cita de "+(pet&&pet.name)+" "+fmtDate(a.date),"📨",{actionId:a.id});simEmail(owner.email,"Confirmacion de cita",push);simWA(owner.phone,"Confirma tu cita de "+fmtDate(a.date),push);count++;}
+    }
+    push("Solicitudes enviadas a "+count+" dueño(s)");
+  },[appointments,pets,users,push]);
+  async function confirmAll(){
+    var pending=appointments.filter(function(a){return a.status==="pending";}).map(function(a){return a.id;});
+    if(!pending.length){push("Sin citas pendientes","warning");return;}
+    await confirmReq(pending);
+  }
+  async function sendApptReq(req){
+    var pet=byId(pets,req.petId);
+    var newReq=Object.assign({},req,{id:"rq"+genId(),ownerId:user.id,status:"pending",ts:Date.now()});
+    var nrq=apptReqs.concat([newReq]); await sSet(KEYS.reqs,nrq); setApptReqs(nrq);
+    var vetAdmins=users.filter(function(u){return u.role==="vet"||u.role==="admin";});
+    for(var j=0;j<vetAdmins.length;j++){var v=vetAdmins[j];await pushNotif(v.id,fullName(user)+" solicita cita para "+(pet&&pet.name)+" "+fmtDate(req.date),"📋");simEmail(v.email,"Solicitud de cita",push);simWA(v.phone,"Nueva solicitud de cita",push);}
+    push("Solicitud enviada al veterinario");
+  }
+  async function approveReq(req){
+    var pet=byId(pets,req.petId);
+    var owner=byId(users,req.ownerId);
+    var newAppt={petId:req.petId,date:req.date,time:req.time,type:req.type,notes:req.notes,id:"a"+genId(),ownerId:req.ownerId,vetId:"u1",status:"confirmed",attended:null};
+    var newA=appointments.concat([newAppt]); await sSet(KEYS.appts,newA); setAppointments(newA);
+    var nrq=apptReqs.map(function(r){return r.id===req.id?Object.assign({},r,{status:"approved"}):r;}); await sSet(KEYS.reqs,nrq); setApptReqs(nrq);
+    if(owner){await pushNotif(owner.id,"Tu solicitud de cita para "+(pet&&pet.name)+" fue aprobada","✅",{actionId:newAppt.id});simEmail(owner.email,"Solicitud aprobada",push);simWA(owner.phone,"Tu cita fue aprobada! "+fmtDate(req.date),push);}
+    push("Solicitud aprobada y cita creada");
+  }
+  async function rejectReq(req){
+    var pet=byId(pets,req.petId);
+    var owner=byId(users,req.ownerId);
+    var nrq=apptReqs.map(function(r){return r.id===req.id?Object.assign({},r,{status:"rejected"}):r;}); await sSet(KEYS.reqs,nrq); setApptReqs(nrq);
+    if(owner){await pushNotif(owner.id,"Tu solicitud para "+(pet&&pet.name)+" fue rechazada","❌");simEmail(owner.email,"Solicitud rechazada",push);simWA(owner.phone,"Tu solicitud fue rechazada",push);}
+    push("Solicitud rechazada");
+  }
+  function openClinical(appt,pet){
+    var existing=null; for(var i=0;i<records.length;i++){if(records[i].petId===appt.petId&&records[i].date===appt.date){existing=records[i];break;}}
+    setClinicalModal({appt:appt,pet:pet,existingRecord:existing});
+  }
+  async function confirmAndAttend(appt){
+    var na=appointments.map(function(a){return a.id===appt.id?Object.assign({},a,{status:"confirmed"}):a;});
+    await sSet(KEYS.appts,na); setAppointments(na);
+    var pet=byId(pets,appt.petId);
+    var existing=null; for(var j=0;j<records.length;j++){if(records[j].petId===appt.petId&&records[j].date===appt.date){existing=records[j];break;}}
+    setClinicalModal({appt:Object.assign({},appt,{status:"confirmed"}),pet:pet,existingRecord:existing});
+    push("Cita confirmada - abriendo historia clínica...");
+  }
+  async function updateRecord(updated){
+    var nr=records.map(function(r){return r.id===updated.id?updated:r;});
+    await sSet(KEYS.records,nr); setRecords(nr);
+    push("Archivos guardados");
+  }
+    async function saveClinicalRecord(record,apptId){
+    var nr=record.id&&records.find(function(r){return r.id===record.id;})?records.map(function(r){return r.id===record.id?record:r;}):records.concat([record]);
+    await sSet(KEYS.records,nr); setRecords(nr);
+    var na=appointments.map(function(a){return a.id===apptId?Object.assign({},a,{status:"attended",attended:true}):a;});
+    await sSet(KEYS.appts,na); setAppointments(na);
+    setClinicalModal(null);
+    var pet=byId(pets,record.petId);
+    var appt=byId(appointments,apptId);
+    var owner=appt?byId(users,appt.ownerId):null;
+    if(owner){await pushNotif(owner.id,"Historia clínica de "+(pet&&pet.name)+" fue registrada","📋");simEmail(owner.email,"Historia clínica actualizada",push);}
+    push("Historia guardada · Cita marcada como atendida");
+  }
+  var isVet=user&&user.role==="vet"; var isAdmin=user&&user.role==="admin"; var isOwner=user&&user.role==="owner";
+  var ownerPets=user?pets.filter(function(p){return p.ownerId===user.id;}):[]; 
+  var owners=users.filter(function(u){return u.role==="owner";});
+  var blockedList=blockedDays.map(function(b){return b.date;});
+  var calProps={appointments:appointments,apptReqs:apptReqs,pets:pets,users:users,user:user,onAdd:function(){setModal({type:"apptForm",data:null});},onEdit:function(a){setModal({type:"apptForm",data:a});},onConfirmReq:confirmReq,onConfirmAll:confirmAll,onCancel:cancelAppt,onReschedule:rescheduleAppt,onApprove:approveReq,onReject:rejectReq,onSendReq:sendApptReq,onOpenClinical:openClinical,onConfirmAndAttend:confirmAndAttend,blockedDays:blockedDays,C:C};
+  if(!ready) return (
+    <div>
+      <style>{buildCss(palette(false))}</style>
+      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#FDF6EC",fontSize:48}}>🐾</div>
+    </div>
+  );
+  if(!user) return (
+    <div>
+      <style>{buildCss(C)}</style>
+      <AuthScreen onLogin={handleLogin} C={C}/>
+    </div>
+  );
+  return (
+    <div>
+      <style>{buildCss(C)}</style>
+      <Toast toasts={toasts} C={C}/>
+      <Shell user={user} tab={tab} setTab={function(t){setTab(t);setSelPet(null);setModal(null);}} onLogout={handleLogout} notifications={notifs} onMarkRead={markRead} onNotifAction={handleNotifAction} C={C}>
+        {isAdmin&&tab==="dashboard"&&<Dashboard pets={pets} records={records} users={users} appointments={appointments} C={C}/>}
+        {isAdmin&&tab==="users"&&<AdminUsersPanel users={users} setUsers={setUsers} push={push} C={C}/>}
+        {isAdmin&&tab==="blocked"&&<BlockedPanel blockedDays={blockedDays} setBlockedDays={setBlockedDays} push={push} C={C}/>}
+        {isAdmin&&tab==="calendar"&&<CalendarView {...calProps}/>}
+        {isVet&&tab==="dashboard"&&<Dashboard pets={pets} records={records} users={users} appointments={appointments} C={C}/>}
+        {isVet&&tab==="pets"&&<PatientsList pets={pets} users={users} records={records} onAdd={function(){setModal({type:"petForm",data:null});}} onEdit={function(p){setModal({type:"petForm",data:p});}} onDelete={deletePet} onCarnet={function(p){var own=byId(users,p.ownerId);setCarnetModal({pet:p,owner:own});}} C={C}/>}
+        {isVet&&tab==="records"&&<RecordsList pets={pets} users={users} records={records} onAdd={function(){setModal({type:"recordForm",data:null});}} onEdit={function(r){setModal({type:"recordForm",data:r});}} onDelete={deleteRecord} onUpdateRecord={updateRecord} C={C}/>}
+        {isVet&&tab==="calendar"&&<CalendarView {...calProps}/>}
+        {isOwner&&tab==="mypets"&&<MyPets pets={ownerPets} records={records} onSelect={function(p){setSelPet(p);setTab("history");}} onCarnet={function(p){var own=byId(users,p.ownerId);setCarnetModal({pet:p,owner:own});}} C={C}/>}
+        {isOwner&&tab==="history"&&<OwnerHistory pets={ownerPets} records={records} selectedPet={selPet} onSelectPet={setSelPet} onUpdateRecord={updateRecord} C={C}/>}
+        {isOwner&&tab==="calendar"&&<CalendarView {...Object.assign({},calProps,{pets:ownerPets,apptReqs:apptReqs.filter(function(r){return r.ownerId===user.id;})})}/>}
+      </Shell>
+      {modal&&modal.type==="petForm"&&<PetForm owners={owners} existing={modal.data} onSave={savePet} onClose={function(){setModal(null);}} C={C} isOwner={isOwner}/>}
+      {modal&&modal.type==="recordForm"&&<RecordForm pets={pets} users={users} vetId={user.id} existing={modal.data} onSave={saveRecord} onClose={function(){setModal(null);}} C={C}/>}
+      {modal&&modal.type==="apptForm"&&<ApptForm pets={pets} owners={owners} existing={modal.data} allAppts={appointments} blockedDays={blockedList} onSave={saveAppt} onClose={function(){setModal(null);}} C={C} allowBlocked={isVet||isAdmin}/>}
+      {pendingAppt&&<ApptActionModal appointment={pendingAppt} pets={pets} users={users} onConfirm={function(a){rescheduleAppt(a,"confirmed");}} onReject={function(a){cancelAppt(a,"owner");}} onClose={function(){setPendingAppt(null);}} C={C}/>}
+      {carnetModal&&<CarnetModal pet={carnetModal.pet} owner={carnetModal.owner} onClose={function(){setCarnetModal(null);}} C={C}/>}
+      {clinicalModal&&<ClinicalNoteModal appointment={clinicalModal.appt} pet={clinicalModal.pet} vetId={user.id} existingRecord={clinicalModal.existingRecord} onSave={saveClinicalRecord} onClose={function(){setClinicalModal(null);}} C={C}/>}
+    </div>
+  );
+}
+
+    ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+    var ld=document.getElementById("loading");
+    ld.classList.add("hide");
+    setTimeout(function(){ld.style.display="none";},600);
+  </script>
+</body>
+</html>
