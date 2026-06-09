@@ -1,0 +1,88 @@
+/* ============================================================
+   VetCare - Estilos globales
+   Los colores dinámicos se aplican via JS (palette.js)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+body {
+  font-family: 'Nunito', sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--color-peach); }
+::-webkit-scrollbar-thumb { background: var(--color-tan); border-radius: 3px; }
+
+/* Form elements */
+input, select, textarea {
+  font-family: 'Nunito', sans-serif;
+  border-radius: 10px;
+  padding: 11px 14px;
+  width: 100%;
+  font-size: 16px;
+  outline: none;
+  transition: border-color .2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input:focus, select:focus, textarea:focus {
+  box-shadow: 0 0 0 3px var(--color-brown-alpha);
+}
+input.err, select.err, textarea.err {
+  border-color: var(--color-red) !important;
+}
+
+/* Buttons */
+button {
+  font-family: 'Nunito', sans-serif;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  transition: all .18s;
+  -webkit-tap-highlight-color: transparent;
+}
+button:active { transform: scale(.97); }
+
+/* Labels */
+label {
+  font-size: 13px;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 5px;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Loading screen */
+#loading {
+  position: fixed; inset: 0;
+  background: #F0F4F8;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 9999; transition: opacity .5s;
+}
+#loading.hide { opacity: 0; pointer-events: none; }
+.ld-paw  { font-size: 72px; margin-bottom: 16px; animation: ldpulse 1.2s ease-in-out infinite; }
+.ld-title { font-size: 30px; font-weight: 800; color: #1A3A5C; letter-spacing: 1px; }
+.ld-sub  { font-size: 13px; color: #4A6275; margin-top: 6px; }
+.ld-bar  { width: 160px; height: 3px; background: #CBD8E4; border-radius: 4px; margin-top: 18px; overflow: hidden; }
+.ld-fill { height: 100%; background: #1E7A8C; border-radius: 4px; animation: ldbar 1.5s ease-in-out infinite; }
+
+@keyframes ldpulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.12);opacity:.75} }
+@keyframes ldbar   { 0%{width:0%;margin-left:0} 50%{width:60%} 100%{width:0%;margin-left:100%} }
+
+/* Responsive */
+#root { min-height: 100vh; }

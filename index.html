@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="VetCare"/>
+  <meta name="theme-color" content="#1A3A5C"/>
+  <title>VetCare - Sistema Veterinario</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>"/>
+
+  <!-- Estilos -->
+  <link rel="stylesheet" href="css/styles.css"/>
+
+  <!-- React (UMD - no bundler necesario) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <!-- Pantalla de carga -->
+  <div id="loading">
+    <div class="ld-paw">🐾</div>
+    <div class="ld-title">VetCare</div>
+    <div class="ld-sub">Sistema de Gestión Veterinaria</div>
+    <div class="ld-bar"><div class="ld-fill"></div></div>
+  </div>
+
+  <!-- App root -->
+  <div id="root"></div>
+
+  <!--
+    Archivos JS cargados en orden de dependencias:
+    config  → data → utils → palette → components → layout → admin → calendar → carnet → dashboard → forms → app
+  -->
+  <script type="text/babel" data-presets="react" src="js/config.js"></script>
+  <script type="text/babel" data-presets="react" src="js/data.js"></script>
+  <script type="text/babel" data-presets="react" src="js/utils.js"></script>
+  <script type="text/babel" data-presets="react" src="js/palette.js"></script>
+  <script type="text/babel" data-presets="react" src="js/components.js"></script>
+  <script type="text/babel" data-presets="react" src="js/layout.js"></script>
+  <script type="text/babel" data-presets="react" src="js/admin.js"></script>
+  <script type="text/babel" data-presets="react" src="js/calendar.js"></script>
+  <script type="text/babel" data-presets="react" src="js/carnet.js"></script>
+  <script type="text/babel" data-presets="react" src="js/dashboard.js"></script>
+  <script type="text/babel" data-presets="react" src="js/forms.js"></script>
+  <script type="text/babel" data-presets="react" src="js/app.js"></script>
+
+  <!-- Arranque -->
+  <script type="text/babel" data-presets="react">
+    Babel.transformScriptTags();
+    ReactDOM.createRoot(document.getElementById("root")).render(
+      React.createElement(window.VetCareApp)
+    );
+    var ld = document.getElementById("loading");
+    ld.classList.add("hide");
+    setTimeout(function(){ ld.style.display = "none"; }, 600);
+  </script>
+</body>
+</html>
