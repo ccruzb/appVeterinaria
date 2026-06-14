@@ -555,9 +555,9 @@ function Shell(props) {
   var notifications=props.notifications, onMarkRead=props.onMarkRead, onNotifAction=props.onNotifAction, C=props.C;
   var isMobile=useIsMobile();
   var isVet=user.role==="vet", isAdmin=user.role==="admin";
-  var vetTabs=[{id:"dashboard",icon:"📊",label:"Dashboard"},{id:"pets",icon:"🐾",label:"Pacientes"},{id:"records",icon:"📋",label:"Historias"},{id:"calendar",icon:"📅",label:"Calendario"}];
+  var vetTabs=[{id:"dashboard",icon:"📊",label:"Dashboard"},{id:"pets",icon:"🐾",label:"Pacientes"},{id:"records",icon:"📋",label:"Historias"},{id:"surgeries",icon:"🔬",label:"Cirugías"},{id:"calendar",icon:"📅",label:"Calendario"}];
   var ownerTabs=[{id:"mypets",icon:"🐾",label:"Mascotas"},{id:"history",icon:"📋",label:"Historial"},{id:"calendar",icon:"📅",label:"Citas"}];
-  var adminTabs=[{id:"dashboard",icon:"📊",label:"Dashboard"},{id:"users",icon:"👥",label:"Usuarios"},{id:"calendar",icon:"📅",label:"Calendario"},{id:"blocked",icon:"🚫",label:"Bloqueados"}];
+  var adminTabs=[{id:"dashboard",icon:"📊",label:"Dashboard"},{id:"users",icon:"👥",label:"Usuarios"},{id:"surgeries",icon:"🔬",label:"Cirugías"},{id:"calendar",icon:"📅",label:"Calendario"},{id:"blocked",icon:"🚫",label:"Bloqueados"}];
   var tabs=isAdmin?adminTabs:isVet?vetTabs:ownerTabs;
   var name=fullName(user);
   if(isMobile) return (
@@ -2129,6 +2129,348 @@ function ApptForm(props) {
 }
 
 // ============================================================
+// CIRUGÍAS - SurgeryForm, SurgeryDetail, SurgeriesList
+// ============================================================
+
+function SurgeryForm(props) {
+  var pets=props.pets, users=props.users||[], vetId=props.vetId, existing=props.existing, C=props.C;
+  var SURGERY_TYPES=["Castración","Esterilización","Ortopedia","Extracción dental","Masa/Tumor","Cesárea","Oftalmológica","Digestiva","Urológica","Traumatología","Otra"];
+  var ANESTHESIA=["Local","General inhalatoria","General inyectable","Sedación","Epidural"];
+  var RISK=["Bajo","Moderado","Alto","Crítico"];
+
+  var s1=useState(existing&&existing.petId||""); var petId=s1[0]; var setPetId=s1[1];
+  var s1b=useState(""); var petSearch=s1b[0]; var setPetSearch=s1b[1];
+  var s2=useState(existing&&existing.date||today()); var date=s2[0]; var setDate=s2[1];
+  var s3=useState(existing&&existing.surgeryType||"Castración"); var surgeryType=s3[0]; var setSurgeryType=s3[1];
+  var s4=useState(existing&&existing.customType||""); var customType=s4[0]; var setCustomType=s4[1];
+  var s5=useState(existing&&existing.diagnosis||""); var diagnosis=s5[0]; var setDiagnosis=s5[1];
+  var s6=useState(existing&&existing.anesthesia||"General inhalatoria"); var anesthesia=s6[0]; var setAnesthesia=s6[1];
+  var s7=useState(existing&&existing.duration||""); var duration=s7[0]; var setDuration=s7[1];
+  var s8=useState(existing&&existing.riskLevel||"Bajo"); var riskLevel=s8[0]; var setRiskLevel=s8[1];
+  var s9=useState(existing&&existing.surgeon||""); var surgeon=s9[0]; var setSurgeon=s9[1];
+  var s10=useState(existing&&existing.assistant||""); var assistant=s10[0]; var setAssistant=s10[1];
+  // Pre-op
+  var s11=useState(existing&&existing.preWeight||""); var preWeight=s11[0]; var setPreWeight=s11[1];
+  var s12=useState(existing&&existing.preFasting||""); var preFasting=s12[0]; var setPreFasting=s12[1];
+  var s13=useState(existing&&existing.preExams||""); var preExams=s13[0]; var setPreExams=s13[1];
+  var s14=useState(existing&&existing.preMeds||""); var preMeds=s14[0]; var setPreMeds=s14[1];
+  var s15=useState(existing&&existing.preNotes||""); var preNotes=s15[0]; var setPreNotes=s15[1];
+  // Intra-op
+  var s16=useState(existing&&existing.procedure||""); var procedure=s16[0]; var setProcedure=s16[1];
+  var s17=useState(existing&&existing.instruments||""); var instruments=s17[0]; var setInstruments=s17[1];
+  var s18=useState(existing&&existing.complications||"Ninguna"); var complications=s18[0]; var setComplications=s18[1];
+  var s19=useState(existing&&existing.intraItems||[]); var intraItems=s19[0]; var setIntraItems=s19[1];
+  var s19b=useState(""); var intraText=s19b[0]; var setIntraText=s19b[1];
+  // Post-op
+  var s20=useState(existing&&existing.postInstructions||""); var postInstructions=s20[0]; var setPostInstructions=s20[1];
+  var s21=useState(existing&&existing.postMeds||""); var postMeds=s21[0]; var setPostMeds=s21[1];
+  var s22=useState(existing&&existing.nextVisit||""); var nextVisit=s22[0]; var setNextVisit=s22[1];
+  var s23=useState(existing&&existing.postNotes||""); var postNotes=s23[0]; var setPostNotes=s23[1];
+  var s24=useState(existing&&existing.outcome||"Exitosa"); var outcome=s24[0]; var setOutcome=s24[1];
+  // Files
+  var s25=useState(existing&&existing.files||[]); var files=s25[0]; var setFiles=s25[1];
+  var s26=useState({}); var errors=s26[0]; var setErrors=s26[1];
+  var s27=useState(0); var tab=s27[0]; var setTab=s27[1];
+
+  function addIntraItem(){ if(!intraText.trim())return; setIntraItems(function(p){return p.concat([{id:genId(),text:intraText.trim()}]);}); setIntraText(""); }
+  function removeIntraItem(id){ setIntraItems(function(p){return p.filter(function(x){return x.id!==id;});}); }
+
+  async function handleFile(e){
+    var fs=Array.from(e.target.files||[]);
+    for(var i=0;i<fs.length;i++){
+      var f=fs[i];
+      if(f.size>5*1024*1024){alert("Máximo 5MB por archivo.");continue;}
+      var b64=await toBase64(f);
+      setFiles(function(p){return p.concat([{id:genId(),file:b64,fileName:f.name,type:f.type}]);});
+    }
+    e.target.value="";
+  }
+  function removeFile(id){ setFiles(function(p){return p.filter(function(x){return x.id!==id;});}); }
+
+  function validate(){
+    var e={};
+    if(!petId) e.petId="Selecciona una mascota.";
+    if(!date) e.date="Fecha obligatoria.";
+    if(!diagnosis.trim()) e.diagnosis="Diagnóstico obligatorio.";
+    if(!procedure.trim()) e.procedure="Describe el procedimiento.";
+    return e;
+  }
+
+  function submit(){
+    var e=validate(); if(Object.keys(e).length){setErrors(e);setTab(0);return;}
+    props.onSave({
+      id:existing&&existing.id||("s"+genId()),
+      petId:petId, vetId:vetId, date:date,
+      surgeryType:surgeryType==="Otra"?customType:surgeryType,
+      diagnosis:diagnosis, anesthesia:anesthesia, duration:duration,
+      riskLevel:riskLevel, surgeon:surgeon, assistant:assistant,
+      preWeight:preWeight, preFasting:preFasting, preExams:preExams,
+      preMeds:preMeds, preNotes:preNotes,
+      procedure:procedure, instruments:instruments,
+      complications:complications, intraItems:intraItems,
+      postInstructions:postInstructions, postMeds:postMeds,
+      nextVisit:nextVisit, postNotes:postNotes, outcome:outcome,
+      files:files, createdAt:existing&&existing.createdAt||new Date().toISOString()
+    });
+  }
+
+  var TABS=["Pre-operatorio","Intraoperatorio","Post-operatorio","Archivos"];
+  var riskColor={Bajo:C.green,Moderado:C.yellow,Alto:C.red,Crítico:"#8B0000"};
+
+  return (
+    <Modal title={existing?"Editar cirugía":"Nueva cirugía"} onClose={props.onClose} C={C}>
+      <PetSearchField pets={pets} users={users} value={petId} onChange={function(id){setPetId(id);setErrors({});}} search={petSearch} onSearch={setPetSearch} error={errors.petId} C={C}/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+        <div style={{gridColumn:"1/-1"}}>
+          <Field label="Tipo de cirugía" C={C}>
+            <select value={surgeryType} onChange={function(e){setSurgeryType(e.target.value);}}>
+              {SURGERY_TYPES.map(function(t){return <option key={t}>{t}</option>;})}
+            </select>
+          </Field>
+          {surgeryType==="Otra"&&<Field label="Especificar tipo" C={C}><input value={customType} onChange={function(e){setCustomType(e.target.value);}} placeholder="Ej: Esplenectomía"/></Field>}
+        </div>
+        <Field label="Fecha *" error={errors.date} C={C}><input type="date" value={date} onChange={function(e){setDate(e.target.value);}} max={today()} className={errors.date?"err":""}/></Field>
+        <Field label="Nivel de riesgo" C={C}>
+          <select value={riskLevel} onChange={function(e){setRiskLevel(e.target.value);}} style={{color:riskColor[riskLevel],fontWeight:700}}>
+            {RISK.map(function(r){return <option key={r} style={{color:riskColor[r]}}>{r}</option>;})}
+          </select>
+        </Field>
+        <Field label="Anestesia" C={C}><select value={anesthesia} onChange={function(e){setAnesthesia(e.target.value);}}>{ANESTHESIA.map(function(a){return <option key={a}>{a}</option>;})}</select></Field>
+        <Field label="Duración (min)" C={C}><input type="number" value={duration} onChange={function(e){setDuration(e.target.value);}} placeholder="Ej: 45" min={1}/></Field>
+        <Field label="Cirujano principal" C={C}><input value={surgeon} onChange={function(e){setSurgeon(e.target.value);}} placeholder="Nombre del cirujano"/></Field>
+        <Field label="Asistente" C={C}><input value={assistant} onChange={function(e){setAssistant(e.target.value);}} placeholder="Nombre del asistente"/></Field>
+        <div style={{gridColumn:"1/-1"}}><Field label="Diagnóstico / Indicación quirúrgica *" error={errors.diagnosis} C={C}><textarea rows={2} value={diagnosis} onChange={function(e){setDiagnosis(e.target.value);setErrors({});}} placeholder="Ej: Piometra cerrada..." className={errors.diagnosis?"err":""}/></Field></div>
+      </div>
+
+      {/* Sub-tabs */}
+      <div style={{display:"flex",marginBottom:16,background:C.peach,borderRadius:10,padding:4,gap:2}}>
+        {TABS.map(function(t,i){
+          var active=tab===i;
+          return <button key={t} onClick={function(){setTab(i);}} style={{flex:1,padding:"7px 4px",borderRadius:8,background:active?C.surface:"transparent",border:"none",fontWeight:700,color:active?C.brownDark:C.textMid,fontSize:11,cursor:"pointer"}}>{t}</button>;
+        })}
+      </div>
+
+      {/* PRE-OP */}
+      {tab===0&&(
+        <div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 12px"}}>
+            <Field label="Peso pre-op (kg)" C={C}><input value={preWeight} onChange={function(e){setPreWeight(e.target.value);}} placeholder="Ej: 12.5" inputMode="decimal"/></Field>
+            <Field label="Horas de ayuno" C={C}><input type="number" value={preFasting} onChange={function(e){setPreFasting(e.target.value);}} placeholder="Ej: 8" min={0}/></Field>
+          </div>
+          <Field label="Exámenes pre-operatorios" C={C}><textarea rows={2} value={preExams} onChange={function(e){setPreExams(e.target.value);}} placeholder="Hemograma, bioquímica, radiografías..."/></Field>
+          <Field label="Medicación pre-operatoria" C={C}><textarea rows={2} value={preMeds} onChange={function(e){setPreMeds(e.target.value);}} placeholder="Premedicación, antibiótico profiláctico..."/></Field>
+          <Field label="Notas pre-operatorias" C={C}><textarea rows={2} value={preNotes} onChange={function(e){setPreNotes(e.target.value);}} placeholder="Observaciones del estado del paciente antes de la cirugía..."/></Field>
+        </div>
+      )}
+
+      {/* INTRA-OP */}
+      {tab===1&&(
+        <div>
+          <Field label="Descripción del procedimiento *" error={errors.procedure} C={C}>
+            <textarea rows={4} value={procedure} onChange={function(e){setProcedure(e.target.value);setErrors({});}} placeholder="Describe paso a paso el procedimiento quirúrgico realizado..." className={errors.procedure?"err":""}/>
+          </Field>
+          <Field label="Instrumental utilizado" C={C}><textarea rows={2} value={instruments} onChange={function(e){setInstruments(e.target.value);}} placeholder="Bisturí, pinzas, suturas utilizadas..."/></Field>
+          <div style={{marginBottom:14}}>
+            <label style={{color:C.brownDark}}>Medicamentos / materiales intraop.</label>
+            {intraItems.map(function(item,idx){
+              return (
+                <div key={item.id} style={{display:"flex",gap:8,alignItems:"center",marginBottom:6,background:C.blueLight,borderRadius:8,padding:"6px 10px"}}>
+                  <span style={{fontSize:11,fontWeight:800,color:C.blue}}>{(idx+1)+"."}</span>
+                  <span style={{flex:1,fontSize:13,color:C.text}}>{item.text}</span>
+                  <button onClick={function(){removeIntraItem(item.id);}} style={{background:"none",border:"none",color:C.red,cursor:"pointer",fontSize:16}}>{"×"}</button>
+                </div>
+              );
+            })}
+            <div style={{display:"flex",gap:8,marginTop:6}}>
+              <input value={intraText} onChange={function(e){setIntraText(e.target.value);}} onKeyDown={function(e){if(e.key==="Enter"){e.preventDefault();addIntraItem();}}} placeholder="Ej: Ketamina 5mg/kg IV..." style={{flex:1}}/>
+              <button onClick={addIntraItem} style={{padding:"0 14px",background:C.blue,border:"none",borderRadius:10,color:"#fff",fontWeight:700,fontSize:16,cursor:"pointer"}}>{"+"}</button>
+            </div>
+          </div>
+          <Field label="Complicaciones" C={C}><textarea rows={2} value={complications} onChange={function(e){setComplications(e.target.value);}} placeholder="Ninguna / Descripción de complicaciones..."/></Field>
+        </div>
+      )}
+
+      {/* POST-OP */}
+      {tab===2&&(
+        <div>
+          <Field label="Resultado" C={C}>
+            <select value={outcome} onChange={function(e){setOutcome(e.target.value);}}>
+              {["Exitosa","Exitosa con complicaciones","Fallida","El paciente no sobrevivió"].map(function(o){return <option key={o}>{o}</option>;})}
+            </select>
+          </Field>
+          <Field label="Instrucciones post-operatorias" C={C}><textarea rows={3} value={postInstructions} onChange={function(e){setPostInstructions(e.target.value);}} placeholder="Reposo, cuidados de herida, restricciones..."/></Field>
+          <Field label="Medicación post-operatoria" C={C}><textarea rows={2} value={postMeds} onChange={function(e){setPostMeds(e.target.value);}} placeholder="Antibióticos, analgésicos, antiinflamatorios..."/></Field>
+          <div style={{display:"flex",gap:12,alignItems:"center"}}>
+            <div style={{flex:1}}><Field label="Próxima revisión" C={C}><input type="date" value={nextVisit} onChange={function(e){setNextVisit(e.target.value);}} min={today()}/></Field></div>
+            {nextVisit&&<button type="button" onClick={function(){setNextVisit("");}} style={{background:"none",border:"none",color:C.red,fontSize:20,cursor:"pointer",marginTop:8}}>{"×"}</button>}
+          </div>
+          <Field label="Notas post-operatorias" C={C}><textarea rows={2} value={postNotes} onChange={function(e){setPostNotes(e.target.value);}} placeholder="Evolución, observaciones del alta..."/></Field>
+        </div>
+      )}
+
+      {/* ARCHIVOS */}
+      {tab===3&&(
+        <div>
+          <div style={{marginBottom:14}}>
+            <label style={{color:C.brownDark,fontSize:13,fontWeight:700,display:"block",marginBottom:8}}>{"Archivos adjuntos (radiografías, fotos, resultados)"}</label>
+            {files.map(function(f){
+              var isImg=f.type&&f.type.startsWith("image/");
+              return (
+                <div key={f.id} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8,background:C.surface,borderRadius:10,padding:"8px 12px",border:"1px solid "+C.border}}>
+                  {isImg&&<img src={f.file} alt={f.fileName} style={{width:44,height:44,borderRadius:6,objectFit:"cover",flexShrink:0}}/>}
+                  {!isImg&&<div style={{width:44,height:44,borderRadius:6,background:C.peach,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{"📄"}</div>}
+                  <span style={{flex:1,fontSize:12,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.fileName}</span>
+                  <button onClick={function(){removeFile(f.id);}} style={{background:"none",border:"none",color:C.red,cursor:"pointer",fontSize:18,flexShrink:0}}>{"×"}</button>
+                </div>
+              );
+            })}
+            <label style={{cursor:"pointer",display:"inline-flex",alignItems:"center",gap:8,marginTop:4}}>
+              <div style={{background:C.blue,color:"#fff",borderRadius:10,padding:"8px 16px",fontSize:13,fontWeight:700}}>{"📎 Agregar archivos"}</div>
+              <span style={{fontSize:11,color:C.textLight}}>{"Imágenes, PDF · máx 5MB"}</span>
+              <input type="file" accept="image/*,application/pdf" multiple style={{display:"none"}} onChange={handleFile}/>
+            </label>
+          </div>
+        </div>
+      )}
+
+      <div style={{display:"flex",gap:10,marginTop:16}}>
+        <Btn onClick={submit} full={true} C={C} variant="success">{"💾 Guardar cirugía"}</Btn>
+        <Btn variant="ghost" onClick={props.onClose} full={true} C={C}>Cancelar</Btn>
+      </div>
+    </Modal>
+  );
+}
+
+function SurgeryCard(props) {
+  var s=props.surgery, pets=props.pets, users=props.users||[], C=props.C;
+  var pet=byId(pets,s.petId);
+  var vet=byId(users,s.vetId);
+  var s1=useState(false); var expanded=s1[0]; var setExpanded=s1[1];
+  var riskColor={Bajo:C.green,Moderado:C.yellow,Alto:C.red,Crítico:"#8B0000"};
+  var outcomeColor={"Exitosa":C.green,"Exitosa con complicaciones":C.yellow,"Fallida":C.red,"El paciente no sobrevivió":"#8B0000"};
+  return (
+    <div style={{background:C.surface,borderRadius:16,border:"1px solid "+C.border,marginBottom:14,overflow:"hidden"}}>
+      {/* Header */}
+      <div style={{display:"flex",gap:12,alignItems:"center",padding:"14px 16px",cursor:"pointer"}} onClick={function(){setExpanded(function(v){return !v;});}}>
+        <PetAvatar photo={pet&&pet.photo} avatar={pet&&pet.avatar} size={44} C={C}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:2}}>
+            <span style={{fontWeight:800,fontSize:15,color:C.brownDark}}>{pet&&pet.name}</span>
+            <span style={{background:C.peach,color:C.brownDark,borderRadius:20,padding:"2px 10px",fontSize:12,fontWeight:700}}>{"🔬 "+s.surgeryType}</span>
+            <span style={{background:(riskColor[s.riskLevel]||C.green)+"22",color:riskColor[s.riskLevel]||C.green,borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:700}}>{s.riskLevel}</span>
+          </div>
+          <div style={{fontSize:12,color:C.textMid}}>{fmtDate(s.date)+(s.duration?" · "+s.duration+" min":"")+(vet?" · "+fullName(vet):"")}</div>
+          {s.outcome&&<div style={{fontSize:12,color:outcomeColor[s.outcome]||C.green,fontWeight:700,marginTop:2}}>{"● "+s.outcome}</div>}
+        </div>
+        <div style={{display:"flex",gap:6,flexShrink:0}}>
+          <Btn small={true} variant="ghost" C={C} onClick={function(e){e.stopPropagation();props.onEdit(s);}}>{"✏️"}</Btn>
+          <Btn small={true} variant="ghost" C={C} onClick={function(e){e.stopPropagation();props.onDelete(s.id);}} style={{color:C.red}}>{"🗑️"}</Btn>
+          <span style={{color:C.textLight,fontSize:18,lineHeight:"32px"}}>{expanded?"▾":"▸"}</span>
+        </div>
+      </div>
+      {/* Detail */}
+      {expanded&&(
+        <div style={{borderTop:"1px solid "+C.border,padding:"14px 16px"}}>
+          {/* Pre-op */}
+          {(s.preWeight||s.preFasting||s.preExams||s.preMeds||s.preNotes)&&(
+            <div style={{marginBottom:12}}>
+              <div style={{fontWeight:800,fontSize:12,color:C.textMid,marginBottom:6,letterSpacing:1}}>{"PRE-OPERATORIO"}</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {s.preWeight&&<div style={{background:C.peach,borderRadius:8,padding:"6px 10px"}}><div style={{fontSize:10,color:C.textMid,fontWeight:700}}>PESO</div><div style={{fontSize:13,color:C.text,fontWeight:600}}>{s.preWeight+" kg"}</div></div>}
+                {s.preFasting&&<div style={{background:C.peach,borderRadius:8,padding:"6px 10px"}}><div style={{fontSize:10,color:C.textMid,fontWeight:700}}>AYUNO</div><div style={{fontSize:13,color:C.text,fontWeight:600}}>{s.preFasting+" horas"}</div></div>}
+                {s.preExams&&<div style={{gridColumn:"1/-1",background:C.blueLight,borderRadius:8,padding:"6px 10px"}}><div style={{fontSize:10,color:C.textMid,fontWeight:700}}>EXÁMENES</div><div style={{fontSize:12,color:C.text}}>{s.preExams}</div></div>}
+                {s.preMeds&&<div style={{gridColumn:"1/-1",background:C.greenLight,borderRadius:8,padding:"6px 10px"}}><div style={{fontSize:10,color:C.textMid,fontWeight:700}}>PREMEDICACIÓN</div><div style={{fontSize:12,color:C.text}}>{s.preMeds}</div></div>}
+              </div>
+            </div>
+          )}
+          {/* Intra-op */}
+          <div style={{marginBottom:12}}>
+            <div style={{fontWeight:800,fontSize:12,color:C.textMid,marginBottom:6,letterSpacing:1}}>{"INTRAOPERATORIO"}</div>
+            <div style={{background:C.peach,borderRadius:8,padding:"8px 10px",marginBottom:6}}><div style={{fontSize:10,color:C.textMid,fontWeight:700,marginBottom:2}}>ANESTESIA</div><div style={{fontSize:12,color:C.text}}>{s.anesthesia}</div></div>
+            {s.procedure&&<div style={{background:C.surface,border:"1px solid "+C.border,borderRadius:8,padding:"8px 10px",marginBottom:6}}><div style={{fontSize:10,color:C.textMid,fontWeight:700,marginBottom:2}}>PROCEDIMIENTO</div><div style={{fontSize:12,color:C.text}}>{s.procedure}</div></div>}
+            {s.intraItems&&s.intraItems.length>0&&<div style={{marginBottom:6}}>{s.intraItems.map(function(item,i){return <div key={item.id} style={{fontSize:12,color:C.text,padding:"2px 0"}}>{(i+1)+". "+item.text}</div>;})}</div>}
+            {s.complications&&s.complications!=="Ninguna"&&<div style={{background:C.redLight,borderRadius:8,padding:"6px 10px"}}><div style={{fontSize:10,color:C.red,fontWeight:700}}>COMPLICACIONES</div><div style={{fontSize:12,color:C.red}}>{s.complications}</div></div>}
+          </div>
+          {/* Post-op */}
+          {(s.postInstructions||s.postMeds||s.nextVisit)&&(
+            <div style={{marginBottom:12}}>
+              <div style={{fontWeight:800,fontSize:12,color:C.textMid,marginBottom:6,letterSpacing:1}}>{"POST-OPERATORIO"}</div>
+              {s.postInstructions&&<div style={{background:C.greenLight,borderRadius:8,padding:"6px 10px",marginBottom:6}}><div style={{fontSize:10,color:C.textMid,fontWeight:700}}>INSTRUCCIONES</div><div style={{fontSize:12,color:C.text}}>{s.postInstructions}</div></div>}
+              {s.postMeds&&<div style={{background:C.blueLight,borderRadius:8,padding:"6px 10px",marginBottom:6}}><div style={{fontSize:10,color:C.textMid,fontWeight:700}}>MEDICACIÓN</div><div style={{fontSize:12,color:C.text}}>{s.postMeds}</div></div>}
+              {s.nextVisit&&<div style={{display:"inline-block",background:C.blueLight,color:C.blue,borderRadius:8,padding:"4px 10px",fontSize:12,fontWeight:700}}>{"📅 Revisión: "+fmtDate(s.nextVisit)}</div>}
+            </div>
+          )}
+          {/* Files */}
+          {s.files&&s.files.length>0&&(
+            <div>
+              <div style={{fontWeight:800,fontSize:12,color:C.textMid,marginBottom:6,letterSpacing:1}}>{"ARCHIVOS"}</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {s.files.map(function(f){
+                  var isImg=f.type&&f.type.startsWith("image/");
+                  return (
+                    <a key={f.id} href={f.file} download={f.fileName} style={{textDecoration:"none"}}>
+                      {isImg
+                        ?<img src={f.file} alt={f.fileName} style={{width:64,height:64,borderRadius:8,objectFit:"cover",border:"1px solid "+C.border}}/>
+                        :<div style={{width:64,height:64,borderRadius:8,background:C.peach,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",border:"1px solid "+C.border,fontSize:24}}>{"📄"}<span style={{fontSize:9,color:C.textMid,marginTop:2,textAlign:"center",overflow:"hidden",width:56}}>{f.fileName}</span></div>
+                      }
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SurgeriesList(props) {
+  var surgeries=props.surgeries, pets=props.pets, users=props.users||[], C=props.C;
+  var isMobile=useIsMobile();
+  var s1=useState(""); var search=s1[0]; var setSearch=s1[1];
+  var s2=useState("Todas"); var fspecies=s2[0]; var setFspecies=s2[1];
+  var s3=useState("Todos"); var ftype=s3[0]; var setFtype=s3[1];
+  var SPECIES=["Todas","Perro","Gato","Ave","Conejo","Reptil","Pez","Otro"];
+  var TYPES=["Todos","Castración","Esterilización","Ortopedia","Extracción dental","Masa/Tumor","Cesárea","Oftalmológica","Digestiva","Urológica","Traumatología","Otra"];
+
+  var filtered=surgeries.filter(function(s){
+    var pet=byId(pets,s.petId);
+    var sr=search.toLowerCase();
+    var matchSearch=!sr||(pet&&pet.name.toLowerCase().indexOf(sr)>=0)||s.surgeryType.toLowerCase().indexOf(sr)>=0||s.diagnosis.toLowerCase().indexOf(sr)>=0;
+    var matchSpecies=fspecies==="Todas"||(pet&&pet.species===fspecies);
+    var matchType=ftype==="Todos"||s.surgeryType===ftype;
+    return matchSearch&&matchSpecies&&matchType;
+  }).sort(function(a,b){return b.date.localeCompare(a.date);});
+
+  return (
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4,flexWrap:"wrap",gap:10}}>
+        <div>
+          <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:isMobile?22:26,color:C.brownDark}}>{"Cirugías"}</h2>
+          <p style={{color:C.textMid,fontSize:13}}>{surgeries.length+" registradas"}</p>
+        </div>
+        <Btn C={C} onClick={props.onAdd} disabled={pets.length===0}>{"+ Nueva cirugía"}</Btn>
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:180}}><input placeholder="Buscar por mascota, tipo o diagnóstico..." value={search} onChange={function(e){setSearch(e.target.value);}}/></div>
+        <select value={fspecies} onChange={function(e){setFspecies(e.target.value);}} style={{width:"auto",minWidth:110}}>{SPECIES.map(function(s){return <option key={s}>{s}</option>;})}</select>
+        <select value={ftype} onChange={function(e){setFtype(e.target.value);}} style={{width:"auto",minWidth:140}}>{TYPES.map(function(t){return <option key={t}>{t}</option>;})}</select>
+      </div>
+      {filtered.length===0
+        ?<div style={{textAlign:"center",padding:40,color:C.textLight}}>
+            <div style={{fontSize:48,marginBottom:12}}>🔬</div>
+            <p>{surgeries.length===0?"Aún no hay cirugías registradas":"Sin resultados para tu búsqueda"}</p>
+          </div>
+        :filtered.map(function(s){
+            return <SurgeryCard key={s.id} surgery={s} pets={pets} users={users} onEdit={props.onEdit} onDelete={props.onDelete} C={C}/>;
+          })
+      }
+    </div>
+  );
+}
+
+// ============================================================
 // APP - Componente principal, estado global, handlers
 // ============================================================
 
@@ -2149,6 +2491,8 @@ function App() {
   var s12=useState(null); var pendingAppt=s12[0]; var setPendingAppt=s12[1];
   var s13=useState(null); var clinicalModal=s13[0]; var setClinicalModal=s13[1];
   var s14=useState(null); var carnetModal=s14[0]; var setCarnetModal=s14[1];
+  var s15=useState([]); var surgeries=s15[0]; var setSurgeries=s15[1];
+  var s16=useState(null); var surgeryModal=s16[0]; var setSurgeryModal=s16[1];
   var tt=useToast(); var toasts=tt.toasts; var push=tt.push;
   var recentKeys=useMemo(function(){return new Set();},[]);
   useEffect(function(){
@@ -2160,6 +2504,8 @@ function App() {
       var rq=await sGet(KEYS.reqs); if(!rq){rq=SEED_REQS;await sSet(KEYS.reqs,rq);}
       var n=await sGet(KEYS.notifs); if(!n){n=[];await sSet(KEYS.notifs,n);}
       var bd=await sGet(KEYS.blocked); if(!bd){bd=[];await sSet(KEYS.blocked,bd);}
+      // Cirugías: almacenadas en localStorage hasta tener tabla Supabase
+      try{ var sv=localStorage.getItem("vc_surgeries"); setSurgeries(sv?JSON.parse(sv):[]);}catch(e){}
       setUsers(u);setPets(p);setRecords(r);setAppointments(a);setApptReqs(rq);setNotifs(n);setBlockedDays(bd);
       var sid=await sGet(KEYS.session);
       if(sid){var su=byId(u,sid); if(su){setUser(su);setTab(su.role==="admin"?"dashboard":su.role==="vet"?"dashboard":"mypets");}}
@@ -2312,6 +2658,16 @@ function App() {
     if(owner){await pushNotif(owner.id,"Historia clínica de "+(pet&&pet.name)+" fue registrada","📋");simEmail(owner.email,"Historia clínica actualizada",push);}
     push("Historia guardada · Cita marcada como atendida");
   }
+  async function saveSurgery(s){
+    var ns=s.id&&surgeries.find(function(x){return x.id===s.id;})?surgeries.map(function(x){return x.id===s.id?s:x;}):surgeries.concat([s]);
+    setSurgeries(ns); localStorage.setItem("vc_surgeries",JSON.stringify(ns));
+    setSurgeryModal(null); push(s.id&&surgeries.find(function(x){return x.id===s.id;})?"Cirugía actualizada":"Cirugía registrada");
+  }
+  async function deleteSurgery(id){
+    if(!confirm("¿Eliminar esta cirugía?"))return;
+    var ns=surgeries.filter(function(x){return x.id!==id;}); setSurgeries(ns); localStorage.setItem("vc_surgeries",JSON.stringify(ns));
+    push("Cirugía eliminada");
+  }
   var isVet=user&&user.role==="vet"; var isAdmin=user&&user.role==="admin"; var isOwner=user&&user.role==="owner";
   var ownerPets=user?pets.filter(function(p){return p.ownerId===user.id;}):[]; 
   var owners=users.filter(function(u){return u.role==="owner";});
@@ -2337,12 +2693,14 @@ function App() {
         {isAdmin&&tab==="dashboard"&&<Dashboard pets={pets} records={records} users={users} appointments={appointments} C={C}/>}
         {isAdmin&&tab==="users"&&<AdminUsersPanel users={users} setUsers={setUsers} push={push} C={C}/>}
         {isAdmin&&tab==="blocked"&&<BlockedPanel blockedDays={blockedDays} setBlockedDays={setBlockedDays} push={push} C={C}/>}
+        {isAdmin&&tab==="surgeries"&&<SurgeriesList surgeries={surgeries} pets={pets} users={users} onAdd={function(){setSurgeryModal({data:null});}} onEdit={function(s){setSurgeryModal({data:s});}} onDelete={deleteSurgery} C={C}/>}
         {isAdmin&&tab==="calendar"&&<CalendarView {...calProps}/>}
         {isVet&&tab==="dashboard"&&<Dashboard pets={pets} records={records} users={users} appointments={appointments} C={C}/>}
         {isVet&&tab==="pets"&&<PatientsList pets={pets} users={users} records={records} onAdd={function(){setModal({type:"petForm",data:null});}} onEdit={function(p){setModal({type:"petForm",data:p});}} onDelete={deletePet} onCarnet={function(p){var own=byId(users,p.ownerId);setCarnetModal({pet:p,owner:own});}} C={C}/>}
         {isVet&&tab==="records"&&<RecordsList pets={pets} users={users} records={records} onAdd={function(){setModal({type:"recordForm",data:null});}} onEdit={function(r){setModal({type:"recordForm",data:r});}} onDelete={deleteRecord} onUpdateRecord={updateRecord} C={C}/>}
+        {isVet&&tab==="surgeries"&&<SurgeriesList surgeries={surgeries} pets={pets} users={users} onAdd={function(){setSurgeryModal({data:null});}} onEdit={function(s){setSurgeryModal({data:s});}} onDelete={deleteSurgery} C={C}/>}
         {isVet&&tab==="calendar"&&<CalendarView {...calProps}/>}
-        {isOwner&&tab==="mypets"&&<MyPets pets={ownerPets} records={records} onSelect={function(p){setSelPet(p);setTab("history");}} onCarnet={function(p){var own=byId(users,p.ownerId);setCarnetModal({pet:p,owner:own});}} C={C}/>}
+        {isOwner&&tab==="mypets"&&<MyPets pets={ownerPets} records={records} surgeries={surgeries} onSelect={function(p){setSelPet(p);setTab("history");}} onCarnet={function(p){var own=byId(users,p.ownerId);setCarnetModal({pet:p,owner:own});}} C={C}/>}
         {isOwner&&tab==="history"&&<OwnerHistory pets={ownerPets} records={records} selectedPet={selPet} onSelectPet={setSelPet} onUpdateRecord={updateRecord} C={C}/>}
         {isOwner&&tab==="calendar"&&<CalendarView {...Object.assign({},calProps,{pets:ownerPets,apptReqs:apptReqs.filter(function(r){return r.ownerId===user.id;})})}/>}
       </Shell>
@@ -2350,6 +2708,7 @@ function App() {
       {modal&&modal.type==="recordForm"&&<RecordForm pets={pets} users={users} vetId={user.id} existing={modal.data} onSave={saveRecord} onClose={function(){setModal(null);}} C={C}/>}
       {modal&&modal.type==="apptForm"&&<ApptForm pets={pets} owners={owners} existing={modal.data} allAppts={appointments} blockedDays={blockedList} onSave={saveAppt} onClose={function(){setModal(null);}} C={C} allowBlocked={isVet||isAdmin}/>}
       {pendingAppt&&<ApptActionModal appointment={pendingAppt} pets={pets} users={users} onConfirm={function(a){rescheduleAppt(a,"confirmed");}} onReject={function(a){cancelAppt(a,"owner");}} onClose={function(){setPendingAppt(null);}} C={C}/>}
+      {surgeryModal&&<SurgeryForm pets={pets} users={users} vetId={user.id} existing={surgeryModal.data} onSave={saveSurgery} onClose={function(){setSurgeryModal(null);}} C={C}/>}
       {carnetModal&&<CarnetModal pet={carnetModal.pet} owner={carnetModal.owner} onClose={function(){setCarnetModal(null);}} C={C}/>}
       {clinicalModal&&<ClinicalNoteModal appointment={clinicalModal.appt} pet={clinicalModal.pet} vetId={user.id} existingRecord={clinicalModal.existingRecord} onSave={saveClinicalRecord} onClose={function(){setClinicalModal(null);}} C={C}/>}
     </div>
