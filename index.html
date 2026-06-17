@@ -19,8 +19,6 @@
    Los colores dinámicos se aplican via JS (palette.js)
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap');
-
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 16px; }
 body {
@@ -104,6 +102,10 @@ label {
 #root { min-height: 100vh; }
 
   </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap"/>
 </head>
 <body>
   <div id="loading">
@@ -113,7 +115,7 @@ label {
     <div class="ld-bar"><div class="ld-fill"></div></div>
   </div>
   <div id="root"></div>
-  <script type="text/babel" data-presets="react">
+  <script type="text/babel" data-presets="react" data-type="script">
 var useState=React.useState,useEffect=React.useEffect,useCallback=React.useCallback,useMemo=React.useMemo;
 
 // ============================================================
@@ -365,7 +367,7 @@ function palette(dark) {
     navIconDim:dark?"#4A6882":"rgba(255,255,255,0.55)",
   };
 }
-var buildCss=function(C){ return "@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap');\n*{box-sizing:border-box;margin:0;padding:0;}html{font-size:16px;}body{font-family:'Nunito',sans-serif;background:"+C.cream+";color:"+C.text+";-webkit-text-size-adjust:100%;}\n::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:"+C.peach+";}::-webkit-scrollbar-thumb{background:"+C.tan+";border-radius:3px;}\ninput,select,textarea{font-family:'Nunito',sans-serif;border:1.5px solid "+C.border+";border-radius:10px;padding:11px 14px;background:"+C.surface+";color:"+C.text+";width:100%;font-size:16px;outline:none;transition:border-color .2s;-webkit-appearance:none;appearance:none;}\ninput:focus,select:focus,textarea:focus{border-color:"+C.brown+";box-shadow:0 0 0 3px "+C.brown+"33;}\ninput.err,select.err,textarea.err{border-color:"+C.red+";}\nbutton{font-family:'Nunito',sans-serif;cursor:pointer;border:none;border-radius:10px;font-weight:700;transition:all .18s;-webkit-tap-highlight-color:transparent;}\nbutton:active{transform:scale(.97);}\nlabel{font-size:13px;font-weight:700;color:"+C.brownDark+";display:block;margin-bottom:5px;}\n@keyframes slideUp{from{transform:translateY(24px);opacity:0;}to{transform:translateY(0);opacity:1;}}\n@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}"; };
+var buildCss=function(C){ return "*{box-sizing:border-box;margin:0;padding:0;}html{font-size:16px;}body{font-family:'Nunito',sans-serif;background:"+C.cream+";color:"+C.text+";-webkit-text-size-adjust:100%;}\n::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-track{background:"+C.peach+";}::-webkit-scrollbar-thumb{background:"+C.tan+";border-radius:3px;}\ninput,select,textarea{font-family:'Nunito',sans-serif;border:1.5px solid "+C.border+";border-radius:10px;padding:11px 14px;background:"+C.surface+";color:"+C.text+";width:100%;font-size:16px;outline:none;transition:border-color .2s;-webkit-appearance:none;appearance:none;}\ninput:focus,select:focus,textarea:focus{border-color:"+C.brown+";box-shadow:0 0 0 3px "+C.brown+"33;}\ninput.err,select.err,textarea.err{border-color:"+C.red+";}\nbutton{font-family:'Nunito',sans-serif;cursor:pointer;border:none;border-radius:10px;font-weight:700;transition:all .18s;-webkit-tap-highlight-color:transparent;}\nbutton:active{transform:scale(.97);}\nlabel{font-size:13px;font-weight:700;color:"+C.brownDark+";display:block;margin-bottom:5px;}\n@keyframes slideUp{from{transform:translateY(24px);opacity:0;}to{transform:translateY(0);opacity:1;}}\n@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}"; };
 function simEmail(email,subject,push){ push("Email -> "+(email||"?")+" : "+subject,"success"); }
 function simWA(phone,msg,push){ if(phone) push("WhatsApp -> "+phone+" : "+msg.slice(0,40),"success"); }
 function byId(arr,id){ for(var _i=0;_i<arr.length;_i++){if(arr[_i].id===id)return arr[_i];} return null; }
