@@ -2581,19 +2581,23 @@ function App() {
   var recentKeys=useMemo(function(){return new Set();},[]);
   useEffect(function(){
     (async function(){
-      var u=await sGet(KEYS.users); if(!u){u=SEED_USERS;await sSet(KEYS.users,u);}
-      var p=await sGet(KEYS.pets); if(!p){p=SEED_PETS;await sSet(KEYS.pets,p);}
-      var r=await sGet(KEYS.records); if(!r){r=SEED_RECORDS;await sSet(KEYS.records,r);}
-      var a=await sGet(KEYS.appts); if(!a){a=SEED_APPTS;await sSet(KEYS.appts,a);}
-      var rq=await sGet(KEYS.reqs); if(!rq){rq=SEED_REQS;await sSet(KEYS.reqs,rq);}
-      var n=await sGet(KEYS.notifs); if(!n){n=[];await sSet(KEYS.notifs,n);}
-      var bd=await sGet(KEYS.blocked); if(!bd){bd=[];await sSet(KEYS.blocked,bd);}
-      // Cirugías: almacenadas en localStorage hasta tener tabla Supabase
-      try{ var sv=localStorage.getItem("vc_surgeries"); setSurgeries(sv?JSON.parse(sv):[]);}catch(e){}
-      setUsers(u);setPets(p);setRecords(r);setAppointments(a);setApptReqs(rq);setNotifs(n);setBlockedDays(bd);
-      var sid=await sGet(KEYS.session);
-      if(sid){var su=byId(u,sid); if(su){setUser(su);setTab(su.role==="admin"?"dashboard":su.role==="vet"?"dashboard":"mypets");}}
-      setReady(true);
+      try {
+        var u=await sGet(KEYS.users); if(!u||!u.length){u=SEED_USERS;await sSet(KEYS.users,u);}
+        var p=await sGet(KEYS.pets); if(!p){p=SEED_PETS;await sSet(KEYS.pets,p);}
+        var r=await sGet(KEYS.records); if(!r){r=SEED_RECORDS;await sSet(KEYS.records,r);}
+        var a=await sGet(KEYS.appts); if(!a){a=SEED_APPTS;await sSet(KEYS.appts,a);}
+        var rq=await sGet(KEYS.reqs); if(!rq){rq=SEED_REQS;await sSet(KEYS.reqs,rq);}
+        var n=await sGet(KEYS.notifs); if(!n){n=[];}
+        var bd=await sGet(KEYS.blocked); if(!bd){bd=[];}
+        try{ var sv=localStorage.getItem("vc_surgeries"); setSurgeries(sv?JSON.parse(sv):[]);}catch(e){}
+        setUsers(u);setPets(p);setRecords(r);setAppointments(a);setApptReqs(rq);setNotifs(n);setBlockedDays(bd);
+        var sid=await sGet(KEYS.session);
+        if(sid){var su=byId(u,sid); if(su){setUser(su);setTab(su.role==="admin"?"dashboard":su.role==="vet"?"dashboard":"mypets");}}
+      } catch(initErr) {
+        console.error("VetCare init error:", initErr);
+      } finally {
+        setReady(true);
+      }
     })();
   },[]);
   async function pushNotif(toId,msg,icon,extra){
