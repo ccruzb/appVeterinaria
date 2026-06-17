@@ -10,6 +10,8 @@
   <meta name="theme-color" content="#1A3A5C"/>
   <title>VetCare - Sistema Veterinario</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐾</text></svg>"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap"/>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -167,15 +169,15 @@ async function sGet(k) {
   try {
     if(k===KEYS.session){ return localStorage.getItem("vc_session")||null; }
     var rows=[];
-    if(k===KEYS.users)    { rows=await sbAll("vc_users");    return rows.map(mapUser); }
-    if(k===KEYS.pets)     { rows=await sbAll("vc_pets");     return rows.map(mapPet); }
-    if(k===KEYS.records)  { rows=await sbAll("vc_records");  return rows.map(mapRecord); }
-    if(k===KEYS.appts)    { rows=await sbAll("vc_appointments"); return rows.map(mapAppt); }
-    if(k===KEYS.reqs)     { rows=await sbAll("vc_appt_requests"); return rows.map(mapReq); }
-    if(k===KEYS.notifs)   { rows=await sbAll("vc_notifications"); return rows.map(mapNotif); }
-    if(k===KEYS.blocked)  { rows=await sbAll("vc_blocked_days"); return rows.map(mapBlocked); }
+    if(k===KEYS.users)    { rows=await sbAll("vc_users");    return rows&&rows.length?rows.map(mapUser):null; }
+    if(k===KEYS.pets)     { rows=await sbAll("vc_pets");     return rows&&rows.length?rows.map(mapPet):null; }
+    if(k===KEYS.records)  { rows=await sbAll("vc_records");  return rows&&rows.length?rows.map(mapRecord):[]; }
+    if(k===KEYS.appts)    { rows=await sbAll("vc_appointments"); return rows&&rows.length?rows.map(mapAppt):[]; }
+    if(k===KEYS.reqs)     { rows=await sbAll("vc_appt_requests"); return rows&&rows.length?rows.map(mapReq):[]; }
+    if(k===KEYS.notifs)   { rows=await sbAll("vc_notifications"); return rows&&rows.length?rows.map(mapNotif):[]; }
+    if(k===KEYS.blocked)  { rows=await sbAll("vc_blocked_days"); return rows&&rows.length?rows.map(mapBlocked):[]; }
     return null;
-  } catch(e){ return null; }
+  } catch(e){ console.error("sGet error for key",k,":",e); return null; }
 }
 async function sSet(k,v) {
   try {
@@ -2580,6 +2582,7 @@ function App() {
   var tt=useToast(); var toasts=tt.toasts; var push=tt.push;
   var recentKeys=useMemo(function(){return new Set();},[]);
   useEffect(function(){
+    var _readyTimeout=setTimeout(function(){setReady(true);},8000);
     (async function(){
       try {
         var u=await sGet(KEYS.users); if(!u||!u.length){u=SEED_USERS;await sSet(KEYS.users,u);}
@@ -2596,6 +2599,7 @@ function App() {
       } catch(initErr) {
         console.error("VetCare init error:", initErr);
       } finally {
+        clearTimeout(_readyTimeout);
         setReady(true);
       }
     })();
