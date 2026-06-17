@@ -502,22 +502,56 @@ function NotifBell(props) {
       </button>
       {open&&<div style={{position:"fixed",inset:0,zIndex:198}} onClick={function(){setOpen(false);}}/>}
       {open&&(
-        <div style={{position:"absolute",right:0,top:40,background:C.surface,border:"1px solid "+C.border,borderRadius:14,width:300,maxHeight:400,overflowY:"auto",zIndex:199,boxShadow:"0 8px 32px #0003",animation:"fadeIn .15s ease"}}>
+        <div style={{position:"absolute",right:0,top:40,background:C.surface,border:"1px solid "+C.border,borderRadius:14,width:320,maxHeight:480,overflowY:"auto",zIndex:199,boxShadow:"0 8px 32px #0003",animation:"fadeIn .15s ease"}}>
           <div style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontWeight:800,fontSize:14,color:C.brownDark}}>Notificaciones</span>
+            <span style={{fontWeight:800,fontSize:14,color:C.brownDark}}>{"Notificaciones"+(unread>0?" ("+unread+" nuevas)":"")}</span>
             {unread>0&&<button onClick={function(){props.onMarkRead(mine.filter(function(n){return !n.read;}).map(function(n){return n.id;}));}} style={{background:"none",border:"none",color:C.blue,fontSize:12,fontWeight:700,cursor:"pointer"}}>Leer todas</button>}
           </div>
-          {mine.length===0?<p style={{padding:20,textAlign:"center",color:C.textLight,fontSize:13}}>Sin notificaciones</p>
-            :mine.slice(0,25).map(function(n){
+          {mine.length===0
+            ?<p style={{padding:20,textAlign:"center",color:C.textLight,fontSize:13}}>Sin notificaciones</p>
+            :(function(){
+              var unreadNotifs=mine.filter(function(n){return !n.read;});
+              var readNotifs=mine.filter(function(n){return n.read;});
+              var showUnread=unreadNotifs.slice(0,3);
+              var hasMoreUnread=unreadNotifs.length>3;
               return (
-                <div key={n.id} onClick={function(){handleClick(n);}} style={{padding:"10px 14px",borderBottom:"1px solid "+C.border,background:n.read?"transparent":C.peach,cursor:"pointer"}}>
-                  <div style={{fontSize:13,color:C.text,fontWeight:n.read?400:700}}>{n.icon+" "+n.msg}</div>
-                  {n.actionId&&!n.read&&<div style={{fontSize:11,color:C.blue,fontWeight:700,marginTop:2}}>Toca para responder</div>}
-                  <div style={{fontSize:11,color:C.textLight,marginTop:2}}>{new Date(n.ts).toLocaleDateString("es-PE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
+                <div>
+                  {showUnread.length>0&&<div style={{padding:"6px 14px",fontSize:10,fontWeight:800,color:C.textLight,letterSpacing:1,background:C.peach}}>{"SIN LEER"}</div>}
+                  {showUnread.map(function(n){
+                    return (
+                      <div key={n.id} onClick={function(){handleClick(n);}} style={{padding:"10px 14px",borderBottom:"1px solid "+C.border,background:C.peach,cursor:"pointer"}}>
+                        <div style={{fontSize:13,color:C.text,fontWeight:700}}>{n.icon+" "+n.msg}</div>
+                        {n.actionId&&<div style={{fontSize:11,color:C.blue,fontWeight:700,marginTop:2}}>Toca para responder</div>}
+                        <div style={{fontSize:11,color:C.textLight,marginTop:2}}>{new Date(n.ts).toLocaleDateString("es-PE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
+                      </div>
+                    );
+                  })}
+                  {hasMoreUnread&&(
+                    <div style={{padding:"8px 14px",textAlign:"center",borderBottom:"1px solid "+C.border,background:C.peach}}>
+                      <span style={{fontSize:12,color:C.brown,fontWeight:700}}>{"+"+(unreadNotifs.length-3)+" notificaciones sin leer más"}</span>
+                    </div>
+                  )}
+                  {readNotifs.length>0&&(
+                    <div>
+                      <div style={{padding:"6px 14px",fontSize:10,fontWeight:800,color:C.textLight,letterSpacing:1,background:C.cream,borderTop:"1px solid "+C.border}}>{"LEÍDAS"}</div>
+                      {readNotifs.slice(0,10).map(function(n){
+                        return (
+                          <div key={n.id} onClick={function(){handleClick(n);}} style={{padding:"10px 14px",borderBottom:"1px solid "+C.border,opacity:0.7,cursor:"pointer"}}>
+                            <div style={{fontSize:12,color:C.textMid,fontWeight:400}}>{n.icon+" "+n.msg}</div>
+                            <div style={{fontSize:11,color:C.textLight,marginTop:2}}>{new Date(n.ts).toLocaleDateString("es-PE",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
+                          </div>
+                        );
+                      })}
+                      {readNotifs.length>10&&<div style={{padding:"8px 14px",textAlign:"center",fontSize:12,color:C.textLight}}>{"...y "+(readNotifs.length-10)+" más"}</div>}
+                    </div>
+                  )}
                 </div>
               );
-            })
+            })()
           }
+          <div style={{padding:"10px 14px",borderTop:"1px solid "+C.border,textAlign:"center"}}>
+            <button onClick={function(){props.onMarkRead(mine.filter(function(n){return !n.read;}).map(function(n){return n.id;}));setOpen(false);}} style={{background:"none",border:"none",color:C.blue,fontSize:12,fontWeight:700,cursor:"pointer",width:"100%"}}>{"✓ Marcar todas como leídas"}</button>
+          </div>
         </div>
       )}
     </div>
@@ -550,6 +584,50 @@ function sBtnIcon(C,color,bg,size){
 // LAYOUT - Shell (nav) + AuthScreen
 // ============================================================
 
+function ChangePasswordModal(props) {
+  var user=props.user, C=props.C;
+  var s1=useState(""); var current=s1[0]; var setCurrent=s1[1];
+  var s2=useState(""); var newPass=s2[0]; var setNewPass=s2[1];
+  var s3=useState(""); var confirm=s3[0]; var setConfirm=s3[1];
+  var s4=useState({}); var errors=s4[0]; var setErrors=s4[1];
+  var s5=useState(false); var loading=s5[0]; var setLoading=s5[1];
+
+  function validate(){
+    var e={};
+    if(!current) e.current="Ingresa tu contraseña actual.";
+    else if(current!==user.password) e.current="Contraseña actual incorrecta.";
+    if(!newPass||newPass.length<4) e.newPass="Mínimo 4 caracteres.";
+    if(newPass!==confirm) e.confirm="Las contraseñas no coinciden.";
+    return e;
+  }
+
+  async function submit(){
+    var e=validate(); if(Object.keys(e).length){setErrors(e);return;}
+    setLoading(true);
+    await props.onSave(newPass);
+    setLoading(false);
+  }
+
+  return (
+    <Modal title="Cambiar contraseña" onClose={props.onClose} C={C}>
+      <div style={{background:C.peach,borderRadius:12,padding:"12px 14px",marginBottom:16,display:"flex",gap:10,alignItems:"center"}}>
+        <div style={{fontSize:32}}>{"🔒"}</div>
+        <div>
+          <div style={{fontWeight:700,color:C.brownDark}}>{user.firstName+" "+user.lastName}</div>
+          <div style={{fontSize:12,color:C.textMid}}>{user.email}</div>
+        </div>
+      </div>
+      <PasswordField label="Contraseña actual" value={current} onChange={function(e){setCurrent(e.target.value);setErrors(function(er){return Object.assign({},er,{current:""});});}} error={errors.current} C={C}/>
+      <PasswordField label="Nueva contraseña" value={newPass} onChange={function(e){setNewPass(e.target.value);setErrors(function(er){return Object.assign({},er,{newPass:""});});}} error={errors.newPass} C={C}/>
+      <PasswordField label="Confirmar nueva contraseña" value={confirm} onChange={function(e){setConfirm(e.target.value);setErrors(function(er){return Object.assign({},er,{confirm:""});});}} error={errors.confirm} C={C}/>
+      <div style={{display:"flex",gap:10,marginTop:8}}>
+        <Btn onClick={submit} disabled={loading} full={true} C={C} variant="success">{loading?"Guardando...":"Cambiar contraseña"}</Btn>
+        <Btn variant="ghost" onClick={props.onClose} full={true} C={C}>Cancelar</Btn>
+      </div>
+    </Modal>
+  );
+}
+
 function Shell(props) {
   var user=props.user, tab=props.tab, setTab=props.setTab, onLogout=props.onLogout;
   var notifications=props.notifications, onMarkRead=props.onMarkRead, onNotifAction=props.onNotifAction, C=props.C;
@@ -570,6 +648,7 @@ function Shell(props) {
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <NotifBell notifications={notifications} userId={user.id} onMarkRead={onMarkRead} onNotifAction={onNotifAction} C={C}/>
           <span style={{color:C.tan,fontSize:12,fontWeight:600,maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{name.split(" ")[0]}</span>
+          <button onClick={props.onChangePassword} style={{background:C.tan+"33",border:"1px solid "+C.tan+"44",borderRadius:8,color:C.navIcon,fontSize:12,padding:"6px 10px",fontWeight:700}}>{"🔑"}</button>
           <button onClick={onLogout} style={{background:C.tan+"33",border:"1px solid "+C.tan+"44",borderRadius:8,color:C.navIcon,fontSize:12,padding:"6px 10px",fontWeight:700}}>Salir</button>
         </div>
       </div>
@@ -601,6 +680,7 @@ function Shell(props) {
             <div style={{color:C.tan,fontSize:12,fontWeight:600,...sOverflow,flex:1}}>{name}</div>
             <NotifBell notifications={notifications} userId={user.id} onMarkRead={onMarkRead} onNotifAction={onNotifAction} C={C}/>
           </div>
+          <div style={{display:"flex",gap:6,marginBottom:6}}><Btn onClick={props.onChangePassword} variant="outline" small={true} full={true} C={C} style={{borderColor:C.tan+"55",color:C.navIconDim}}>{"🔑 Contraseña"}</Btn></div>
           <Btn onClick={onLogout} variant="outline" small={true} full={true} C={C} style={{borderColor:C.tan+"55",color:C.navIconDim}}>Salir</Btn>
         </div>
       </div>
@@ -654,7 +734,7 @@ function AuthScreen(props) {
       var exists=false;
       for(var j=0;j<users.length;j++){ if(users[j].email===email){exists=true;break;} }
       if(exists){setErrors({email:"Email ya registrado."});setLoading(false);return;}
-      var nu={id:"u"+genId(),role:role,firstName:firstName.trim(),lastName:lastName.trim(),email:email.trim(),password:pass,docType:docType,docNum:docNum,phone:phone.trim(),blocked:false};
+      var nu={id:"u"+genId(),role:role,firstName:firstName.trim(),lastName:lastName.trim(),email:email.trim(),password:pass,docType:docType,docNum:docNum,phone:phone.trim(),address:address.trim(),blocked:false};
       var nl=users.concat([nu]);
       await sSet(KEYS.users,nl); await sSet(KEYS.session,nu.id); onLogin(nu,nl);
     }
@@ -669,10 +749,9 @@ function AuthScreen(props) {
           <p style={{color:C.textMid,fontSize:14,marginTop:4}}>Sistema de Gestión Veterinaria</p>
         </div>
         <div style={{background:C.surface,borderRadius:16,border:"1px solid "+C.border,padding:24}}>
-          <div style={{display:"flex",marginBottom:20,background:C.peach,borderRadius:10,padding:4}}>
-            {["login","register"].map(function(m){
-              return <button key={m} onClick={function(){setMode(m);setErrors({});}} style={{flex:1,padding:"9px 0",borderRadius:8,background:mode===m?C.surface:"transparent",border:"none",fontWeight:700,color:mode===m?C.brownDark:C.textMid,fontSize:14}}>{m==="login"?"Iniciar sesión":"Registrarme"}</button>;
-            })}
+          <div style={{marginBottom:20,textAlign:"center"}}>
+            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:C.brownDark}}>Iniciar sesión</h3>
+            <p style={{fontSize:12,color:C.textLight,marginTop:4}}>Acceso solo para usuarios autorizados</p>
           </div>
           {mode==="register"&&(
             <div>
@@ -690,8 +769,8 @@ function AuthScreen(props) {
           )}
           <Field label="Email" error={errors.email} C={C}><input type="email" placeholder="correo@ejemplo.com" value={email} onChange={function(e){setEmail(e.target.value);clrErr("email");}} className={errors.email?"err":""}/></Field>
           <PasswordField label="Contraseña" value={pass} onChange={function(e){setPass(e.target.value);clrErr("pass");}} error={errors.pass} C={C}/>
-          <Btn onClick={handle} disabled={loading} full={true} C={C} style={{marginTop:4}}>{loading?"...":mode==="login"?"Entrar":"Crear cuenta"}</Btn>
-          {mode==="login"&&<div style={{marginTop:14,padding:"10px 12px",background:C.greenLight,borderRadius:10,fontSize:11,color:C.textMid,lineHeight:1.7}}>{"Admin: admin@vetcare.com / admin2025 | Vet: german@clinica.com / vetcare2025 | Dueño: carlos@mail.com / 1234"}</div>}
+          <Btn onClick={handle} disabled={loading} full={true} C={C} style={{marginTop:4}}>{loading?"...":"Entrar"}</Btn>
+          <div style={{marginTop:14,padding:"10px 12px",background:C.greenLight,borderRadius:10,fontSize:11,color:C.textMid,lineHeight:1.7}}>{"Admin: admin@vetcare.com / admin2025 | Vet: german@clinica.com / vetcare2025 | Dueño: carlos@mail.com / 1234"}</div>
         </div>
       </div>
     </div>
@@ -877,7 +956,7 @@ function AdminUsersPanel(props) {
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontWeight:800,fontSize:15,color:C.brownDark}}>{fullName(u)}{u.blocked&&<span style={{marginLeft:8,background:C.redLight,color:C.red,borderRadius:8,padding:"2px 8px",fontSize:11}}>BLOQUEADO</span>}</div>
                   <div style={{fontSize:12,color:C.textMid}}>{u.email+" - "+u.docType+": "+(u.docNum||"—")}</div>
-                  <div style={{fontSize:12,color:C.textLight}}><span style={{background:rc+"22",color:rc,borderRadius:8,padding:"2px 8px",fontWeight:700}}>{rl}</span>{u.phone&&<span style={{marginLeft:8}}>{"📱 "+u.phone}</span>}</div>
+                  <div style={{fontSize:12,color:C.textLight}}><span style={{background:rc+"22",color:rc,borderRadius:8,padding:"2px 8px",fontWeight:700}}>{rl}</span>{u.phone&&<span style={{marginLeft:8}}>{"📱 "+u.phone}</span>}{u.address&&<span style={{marginLeft:8}}>{"📍 "+u.address}</span>}</div>
                 </div>
                 <div style={{display:"flex",gap:6,flexShrink:0,flexWrap:"wrap"}}>
                   <Btn small={true} variant="ghost" C={C} onClick={function(){setEditUser(u);}}>✏️</Btn>
@@ -903,11 +982,12 @@ function EditUserModal(props) {
   var s5=useState(user.docType||"DNI"); var docType=s5[0]; var setDocType=s5[1];
   var s6=useState(user.docNum||""); var docNum=s6[0]; var setDocNum=s6[1];
   var s7=useState(user.role||"owner"); var role=s7[0]; var setRole=s7[1];
-  var s8=useState(""); var newPass=s8[0]; var setNewPass=s8[1];
-  var s9=useState({}); var errors=s9[0]; var setErrors=s9[1];
+  var s8=useState(user.address||""); var address=s8[0]; var setAddress=s8[1];
+  var s9=useState(""); var newPass=s9[0]; var setNewPass=s9[1];
+  var s10=useState({}); var errors=s10[0]; var setErrors=s10[1];
   function submit(){
     if(!firstName.trim()||!lastName.trim()){setErrors({name:"Nombre y apellido obligatorios."});return;}
-    var updated=Object.assign({},user,{firstName:firstName.trim(),lastName:lastName.trim(),email:email,phone:phone,docType:docType,docNum:docNum,role:role});
+    var updated=Object.assign({},user,{firstName:firstName.trim(),lastName:lastName.trim(),email:email,phone:phone,docType:docType,docNum:docNum,role:role,address:address.trim()});
     if(newPass.length>=4) updated.password=newPass;
     props.onSave(updated);
   }
@@ -919,7 +999,8 @@ function EditUserModal(props) {
         <Field label="Apellido *" C={C}><input value={lastName} onChange={function(e){setLastName(e.target.value);}} placeholder="Apellido"/></Field>
       </div>
       <Field label="Email" C={C}><input type="email" value={email} onChange={function(e){setEmail(e.target.value);}}/></Field>
-      <Field label="Telefono / WhatsApp" C={C}><input value={phone} onChange={function(e){setPhone(sanitizePhone(e.target.value));}} placeholder="999999999" maxLength={9}/></Field>
+      <Field label="Teléfono / WhatsApp" C={C}><input value={phone} onChange={function(e){setPhone(sanitizePhone(e.target.value));}} placeholder="999999999" maxLength={9}/></Field>
+      <Field label="Dirección" C={C}><input value={address} onChange={function(e){setAddress(e.target.value);}} placeholder="Ej: Av. Principal 123, Lima"/></Field>
       <Field label="Rol" C={C}><select value={role} onChange={function(e){setRole(e.target.value);}}><option value="owner">Dueño</option><option value="vet">Veterinario</option><option value="admin">Admin</option></select></Field>
       <div style={{display:"grid",gridTemplateColumns:"160px 1fr",gap:"0 10px"}}>
         <Field label="Tipo doc." C={C}><select value={docType} onChange={function(e){setDocType(e.target.value);}}><option value="DNI">DNI</option><option value="CE">Carnet</option><option value="PAS">Pasaporte</option></select></Field>
@@ -950,7 +1031,7 @@ function AddUserModal(props) {
     if(!pass||pass.length<4) e.pass="Mínimo 4 caracteres.";
     var de=validateDoc(docType,docNum); if(de) e.docNum=de;
     if(Object.keys(e).length){setErrors(e);return;}
-    var nu={id:"u"+genId(),role:role,firstName:firstName.trim(),lastName:lastName.trim(),email:email.trim(),password:pass,docType:docType,docNum:docNum,phone:phone.trim(),blocked:false};
+    var nu={id:"u"+genId(),role:role,firstName:firstName.trim(),lastName:lastName.trim(),email:email.trim(),password:pass,docType:docType,docNum:docNum,phone:phone.trim(),address:address.trim(),blocked:false};
     props.onAdd(nu);
   }
   return (
@@ -2491,6 +2572,7 @@ function App() {
   var s12=useState(null); var pendingAppt=s12[0]; var setPendingAppt=s12[1];
   var s13=useState(null); var clinicalModal=s13[0]; var setClinicalModal=s13[1];
   var s14=useState(null); var carnetModal=s14[0]; var setCarnetModal=s14[1];
+  var s14b=useState(false); var showChangePwd=s14b[0]; var setShowChangePwd=s14b[1];
   var s15=useState([]); var surgeries=s15[0]; var setSurgeries=s15[1];
   var s16=useState(null); var surgeryModal=s16[0]; var setSurgeryModal=s16[1];
   var tt=useToast(); var toasts=tt.toasts; var push=tt.push;
@@ -2658,6 +2740,12 @@ function App() {
     if(owner){await pushNotif(owner.id,"Historia clínica de "+(pet&&pet.name)+" fue registrada","📋");simEmail(owner.email,"Historia clínica actualizada",push);}
     push("Historia guardada · Cita marcada como atendida");
   }
+  async function changePassword(newPwd){
+    var nu=users.map(function(u){return u.id===user.id?Object.assign({},u,{password:newPwd}):u;});
+    await sSet(KEYS.users,nu); setUsers(nu);
+    setUser(function(u){return Object.assign({},u,{password:newPwd});});
+    setShowChangePwd(false); push("Contraseña actualizada exitosamente");
+  }
   async function saveSurgery(s){
     var ns=s.id&&surgeries.find(function(x){return x.id===s.id;})?surgeries.map(function(x){return x.id===s.id?s:x;}):surgeries.concat([s]);
     setSurgeries(ns); localStorage.setItem("vc_surgeries",JSON.stringify(ns));
@@ -2689,7 +2777,7 @@ function App() {
     <div>
       <style>{buildCss(C)}</style>
       <Toast toasts={toasts} C={C}/>
-      <Shell user={user} tab={tab} setTab={function(t){setTab(t);setSelPet(null);setModal(null);}} onLogout={handleLogout} notifications={notifs} onMarkRead={markRead} onNotifAction={handleNotifAction} C={C}>
+      <Shell user={user} tab={tab} setTab={function(t){setTab(t);setSelPet(null);setModal(null);}} onLogout={handleLogout} onChangePassword={function(){setShowChangePwd(true);}} notifications={notifs} onMarkRead={markRead} onNotifAction={handleNotifAction} C={C}>
         {isAdmin&&tab==="dashboard"&&<Dashboard pets={pets} records={records} users={users} appointments={appointments} C={C}/>}
         {isAdmin&&tab==="users"&&<AdminUsersPanel users={users} setUsers={setUsers} push={push} C={C}/>}
         {isAdmin&&tab==="blocked"&&<BlockedPanel blockedDays={blockedDays} setBlockedDays={setBlockedDays} push={push} C={C}/>}
@@ -2708,6 +2796,7 @@ function App() {
       {modal&&modal.type==="recordForm"&&<RecordForm pets={pets} users={users} vetId={user.id} existing={modal.data} onSave={saveRecord} onClose={function(){setModal(null);}} C={C}/>}
       {modal&&modal.type==="apptForm"&&<ApptForm pets={pets} owners={owners} existing={modal.data} allAppts={appointments} blockedDays={blockedList} onSave={saveAppt} onClose={function(){setModal(null);}} C={C} allowBlocked={isVet||isAdmin}/>}
       {pendingAppt&&<ApptActionModal appointment={pendingAppt} pets={pets} users={users} onConfirm={function(a){rescheduleAppt(a,"confirmed");}} onReject={function(a){cancelAppt(a,"owner");}} onClose={function(){setPendingAppt(null);}} C={C}/>}
+      {showChangePwd&&user&&<ChangePasswordModal user={user} onSave={changePassword} onClose={function(){setShowChangePwd(false);}} C={C}/>}
       {surgeryModal&&<SurgeryForm pets={pets} users={users} vetId={user.id} existing={surgeryModal.data} onSave={saveSurgery} onClose={function(){setSurgeryModal(null);}} C={C}/>}
       {carnetModal&&<CarnetModal pet={carnetModal.pet} owner={carnetModal.owner} onClose={function(){setCarnetModal(null);}} C={C}/>}
       {clinicalModal&&<ClinicalNoteModal appointment={clinicalModal.appt} pet={clinicalModal.pet} vetId={user.id} existingRecord={clinicalModal.existingRecord} onSave={saveClinicalRecord} onClose={function(){setClinicalModal(null);}} C={C}/>}
