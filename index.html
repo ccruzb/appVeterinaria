@@ -2582,7 +2582,7 @@ function App() {
   var tt=useToast(); var toasts=tt.toasts; var push=tt.push;
   var recentKeys=useMemo(function(){return new Set();},[]);
   useEffect(function(){
-    var _readyTimeout=setTimeout(function(){setReady(true);},8000);
+    var _readyTimeout=setTimeout(function(){console.log("VetCare: forcing ready after timeout");setReady(true);},3000);
     (async function(){
       try {
         var u=await sGet(KEYS.users); if(!u||!u.length){u=SEED_USERS;await sSet(KEYS.users,u);}
@@ -2774,7 +2774,11 @@ function App() {
   if(!ready) return (
     <div>
       <style>{buildCss(palette(false))}</style>
-      <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#FDF6EC",fontSize:48}}>🐾</div>
+      <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#FDF6EC",gap:16}}>
+        <div style={{fontSize:48}}>🐾</div>
+        <div style={{fontSize:14,color:"#4A6275",fontFamily:"sans-serif"}}>Cargando VetCare...</div>
+        <div style={{fontSize:11,color:"#999",fontFamily:"monospace"}}>v2.1</div>
+      </div>
     </div>
   );
   if(!user) return (
