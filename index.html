@@ -694,92 +694,47 @@ function Shell(props) {
 }
 function AuthScreen(props) {
   var onLogin=props.onLogin, C=props.C;
-  var s0=useState("login"); var mode=s0[0]; var setMode=s0[1];
-  var s1=useState(""); var firstName=s1[0]; var setFirstName=s1[1];
-  var s2=useState(""); var lastName=s2[0]; var setLastName=s2[1];
-  var s3=useState(""); var email=s3[0]; var setEmail=s3[1];
-  var s4=useState(""); var pass=s4[0]; var setPass=s4[1];
-  var s5=useState("owner"); var role=s5[0]; var setRole=s5[1];
-  var s6=useState("DNI"); var docType=s6[0]; var setDocType=s6[1];
-  var s7=useState(""); var docNum=s7[0]; var setDocNum=s7[1];
-  var s8=useState(""); var phone=s8[0]; var setPhone=s8[1];
-  var s9=useState({}); var errors=s9[0]; var setErrors=s9[1];
-  var s10=useState(false); var loading=s10[0]; var setLoading=s10[1];
-  function clrErr(k){ setErrors(function(e){ var n=Object.assign({},e); n[k]=""; return n; }); }
-  function handleDocNum(v){
-    if(docType==="DNI"){ setDocNum(v.replace(/\D/g,"").slice(0,8)); }
-    else { var u=v.toUpperCase(); if(/^[A-Z]?\d*$/.test(u)) setDocNum(u.slice(0,9)); }
-    clrErr("docNum");
-  }
-  function validate(){
-    var e={};
-    if(mode==="register"){
-      if(!firstName.trim()) e.firstName="Nombre obligatorio.";
-      if(!lastName.trim()) e.lastName="Apellido obligatorio.";
-      var de=validateDoc(docType,docNum); if(de) e.docNum=de;
-    }
-    if(!email.trim()) e.email="Email obligatorio.";
-    else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email="Email no válido.";
-    if(!pass) e.pass="Contraseña obligatoria.";
-    else if(mode==="register"&&pass.length<4) e.pass="Mínimo 4 caracteres.";
-    return e;
-  }
+  var users=props.users||[];
+  var s1=useState(""); var email=s1[0]; var setEmail=s1[1];
+  var s2=useState(""); var pass=s2[0]; var setPass=s2[1];
+  var s3=useState({}); var errors=s3[0]; var setErrors=s3[1];
+  var s4=useState(false); var loading=s4[0]; var setLoading=s4[1];
+
   async function handle(){
-    var e=validate(); if(Object.keys(e).length){setErrors(e);return;} setLoading(true);
-    var stored=await sGet(KEYS.users);
-    var users=stored||SEED_USERS;
-    if(mode==="login"){
-      var u=null;
-      for(var i=0;i<users.length;i++){ if(users[i].email===email&&users[i].password===pass){u=users[i];break;} }
-      if(!u){setErrors({pass:"Email o contrasena incorrectos."});setLoading(false);return;}
-      if(u.blocked){setErrors({pass:"Cuenta bloqueada."});setLoading(false);return;}
-      await sSet(KEYS.session,u.id); onLogin(u,users);
-    } else {
-      var exists=false;
-      for(var j=0;j<users.length;j++){ if(users[j].email===email){exists=true;break;} }
-      if(exists){setErrors({email:"Email ya registrado."});setLoading(false);return;}
-      var nu={id:"u"+genId(),role:role,firstName:firstName.trim(),lastName:lastName.trim(),email:email.trim(),password:pass,docType:docType,docNum:docNum,phone:phone.trim(),address:address.trim(),blocked:false};
-      var nl=users.concat([nu]);
-      await sSet(KEYS.users,nl); await sSet(KEYS.session,nu.id); onLogin(nu,nl);
-    }
+    var e={};
+    if(!email.trim()) e.email="Email obligatorio.";
+    if(!pass) e.pass="Contraseña obligatoria.";
+    if(Object.keys(e).length){setErrors(e);return;}
+    setLoading(true);
+    var u=null;
+    for(var i=0;i<users.length;i++){ if(users[i].email===email&&users[i].password===pass){u=users[i];break;} }
+    if(!u){setErrors({pass:"Email o contraseña incorrectos."});setLoading(false);return;}
+    if(u.blocked){setErrors({pass:"Cuenta bloqueada. Contacta al administrador."});setLoading(false);return;}
+    await sSet(KEYS.session,u.id); onLogin(u,users);
     setLoading(false);
   }
+
+  function clrErr(k){ setErrors(function(e){var n=Object.assign({},e);delete n[k];return n;}); }
+
   return (
-    <div style={{minHeight:"100vh",background:"linear-gradient(135deg,"+C.peach+" 0%,"+C.cream+" 60%)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div style={{width:"100%",maxWidth:440}}>
-        <div style={{textAlign:"center",marginBottom:28}}>
-          <div style={{fontSize:72,marginBottom:8,lineHeight:1}}>🐾</div>
-          <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:30,color:C.brownDark}}>VetCare</h1>
-          <p style={{color:C.textMid,fontSize:14,marginTop:4}}>Sistema de Gestión Veterinaria</p>
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"linear-gradient(135deg,"+C.cream+" 0%,"+C.peach+" 100%)",padding:20}}>
+      <div style={{background:C.surface,borderRadius:20,padding:32,width:"100%",maxWidth:400,boxShadow:"0 20px 60px #00000022"}}>
+        <div style={{textAlign:"center",marginBottom:24}}>
+          <div style={{fontSize:52,marginBottom:8}}>🐾</div>
+          <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:28,color:C.brownDark,marginBottom:4}}>VetCare</h1>
+          <p style={{fontSize:13,color:C.textMid}}>Sistema de Gestión Veterinaria</p>
         </div>
-        <div style={{background:C.surface,borderRadius:16,border:"1px solid "+C.border,padding:24}}>
-          <div style={{marginBottom:20,textAlign:"center"}}>
-            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:C.brownDark}}>Iniciar sesión</h3>
-            <p style={{fontSize:12,color:C.textLight,marginTop:4}}>Acceso solo para usuarios autorizados</p>
-          </div>
-          {mode==="register"&&(
-            <div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 10px"}}>
-                <Field label="Nombre *" error={errors.firstName} C={C}><input placeholder="Tu nombre" value={firstName} onChange={function(e){setFirstName(e.target.value);clrErr("firstName");}} className={errors.firstName?"err":""}/></Field>
-                <Field label="Apellido *" error={errors.lastName} C={C}><input placeholder="Tu apellido" value={lastName} onChange={function(e){setLastName(e.target.value);clrErr("lastName");}} className={errors.lastName?"err":""}/></Field>
-              </div>
-              <Field label="Tipo de cuenta" C={C}><select value={role} onChange={function(e){setRole(e.target.value);}}><option value="owner">Dueño de mascota</option><option value="vet">Veterinario</option></select></Field>
-              <div style={{display:"grid",gridTemplateColumns:"160px 1fr",gap:"0 10px"}}>
-                <Field label="Tipo doc." C={C}><select value={docType} onChange={function(e){setDocType(e.target.value);setDocNum("");clrErr("docNum");}}><option value="DNI">DNI</option><option value="CE">Carnet</option><option value="PAS">Pasaporte</option></select></Field>
-                <Field label={docType==="DNI"?"Nº DNI (8 digitos)":"Letra + 8 digitos"} error={errors.docNum} C={C}><input value={docNum} onChange={function(e){handleDocNum(e.target.value);}} placeholder={docType==="DNI"?"12345678":"A00000000"} className={errors.docNum?"err":""}/></Field>
-              </div>
-              <Field label="Telefono / WhatsApp" C={C}><input value={phone} onChange={function(e){setPhone(sanitizePhone(e.target.value));}} placeholder="999999999" inputMode="numeric" maxLength={9}/></Field>
-            </div>
-          )}
-          <Field label="Email" error={errors.email} C={C}><input type="email" placeholder="correo@ejemplo.com" value={email} onChange={function(e){setEmail(e.target.value);clrErr("email");}} className={errors.email?"err":""}/></Field>
-          <PasswordField label="Contraseña" value={pass} onChange={function(e){setPass(e.target.value);clrErr("pass");}} error={errors.pass} C={C}/>
-          <Btn onClick={handle} disabled={loading} full={true} C={C} style={{marginTop:4}}>{loading?"...":"Entrar"}</Btn>
-          <div style={{marginTop:14,padding:"10px 12px",background:C.greenLight,borderRadius:10,fontSize:11,color:C.textMid,lineHeight:1.7}}>{"Admin: admin@vetcare.com / admin2025 | Vet: german@clinica.com / vetcare2025 | Dueño: carlos@mail.com / 1234"}</div>
-        </div>
+        <Field label="Email" error={errors.email} C={C}>
+          <input type="email" value={email} onChange={function(e){setEmail(e.target.value);clrErr("email");}} placeholder="tu@email.com" className={errors.email?"err":""} autoComplete="email"/>
+        </Field>
+        <PasswordField label="Contraseña" value={pass} onChange={function(e){setPass(e.target.value);clrErr("pass");}} error={errors.pass} C={C}/>
+        <Btn onClick={handle} disabled={loading} full={true} C={C} style={{marginTop:8}}>{loading?"...":"Entrar"}</Btn>
+        <div style={{marginTop:14,padding:"10px 12px",background:C.greenLight,borderRadius:10,fontSize:11,color:C.textMid,lineHeight:1.7}}>{"Admin: admin@vetcare.com / admin2025 | Vet: german@clinica.com / vetcare2025 | Dueño: carlos@mail.com / 1234"}</div>
       </div>
     </div>
   );
 }
+
 function ApptActionModal(props) {
   var appointment=props.appointment, pets=props.pets, users=props.users, C=props.C;
   if(!appointment) return null;
