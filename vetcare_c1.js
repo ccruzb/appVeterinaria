@@ -116,6 +116,10 @@ function BreedSelect(props) {
 }
 function NotifBell(props) {
   var C=props.C;
+  var placement=props.placement||"topbar";
+  var panelStyle=placement==="sidebar"
+    ? {position:"fixed",left:224,bottom:56,background:C.surface,border:"1px solid "+C.border,borderRadius:14,width:340,maxHeight:480,overflowY:"auto",zIndex:500,boxShadow:"0 8px 32px #0003",animation:"fadeIn .15s ease"}
+    : {position:"absolute",right:0,top:44,background:C.surface,border:"1px solid "+C.border,borderRadius:14,width:320,maxHeight:480,overflowY:"auto",zIndex:500,boxShadow:"0 8px 32px #0003",animation:"fadeIn .15s ease"};
   var s1=useState(false); var open=s1[0]; var setOpen=s1[1];
   var mine=useMemo(function(){ return props.notifications.filter(function(n){return n.toId===props.userId;}).sort(function(a,b){return b.ts-a.ts;}); },[props.notifications,props.userId]);
   var unread=useMemo(function(){ return mine.filter(function(n){return !n.read;}).length; },[mine]);
@@ -128,7 +132,7 @@ function NotifBell(props) {
       )
       , open&&React.createElement('div', { style: {position:"fixed",inset:0,zIndex:198}, onClick: function(){setOpen(false);},})
       , open&&(
-        React.createElement('div', { style: {position:"fixed",left:220,bottom:60,background:C.surface,border:"1px solid "+C.border,borderRadius:14,width:340,maxHeight:480,overflowY:"auto",zIndex:500,boxShadow:"0 8px 32px #0003",animation:"fadeIn .15s ease"},}
+        React.createElement('div', { style: panelStyle,}
           , React.createElement('div', { style: {padding:"12px 16px",borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center"},}
             , React.createElement('span', { style: {fontWeight:800,fontSize:14,color:C.brownDark},}, "Notificaciones"+(unread>0?" ("+unread+" nuevas)":""))
             , unread>0&&React.createElement('button', { onClick: function(){props.onMarkRead(mine.filter(function(n){return !n.read;}).map(function(n){return n.id;}));}, style: {background:"none",border:"none",color:C.blue,fontSize:12,fontWeight:700,cursor:"pointer"},}, "Leer todas" )
@@ -272,7 +276,7 @@ function Shell(props) {
           , React.createElement('span', { style: {fontFamily:"'Playfair Display',serif",color:C.navIcon,fontSize:17},}, "VetCare")
         )
         , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10},}
-          , React.createElement(NotifBell, { notifications: notifications, userId: user.id, onMarkRead: onMarkRead, onNotifAction: onNotifAction, C: C,})
+          , React.createElement(NotifBell, { notifications: notifications, userId: user.id, onMarkRead: onMarkRead, onNotifAction: onNotifAction, placement: 'topbar', C: C,})
           , React.createElement('span', { style: {color:C.tan,fontSize:12,fontWeight:600,maxWidth:80,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},}, name.split(" ")[0])
           , React.createElement('button', { onClick: props.onChangePassword, style: {background:C.tan+"33",border:"1px solid "+C.tan+"44",borderRadius:8,color:C.navIcon,fontSize:12,padding:"6px 10px",fontWeight:700},}, "🔑")
           , React.createElement('button', { onClick: onLogout, style: {background:C.tan+"33",border:"1px solid "+C.tan+"44",borderRadius:8,color:C.navIcon,fontSize:12,padding:"6px 10px",fontWeight:700},}, "Salir")
@@ -304,7 +308,7 @@ function Shell(props) {
         , React.createElement('div', { style: {borderTop:"1px solid "+C.tan+"33",paddingTop:14},}
           , React.createElement('div', { style: {display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10},}
             , React.createElement('div', { style: {color:C.tan,fontSize:12,fontWeight:600,...sOverflow,flex:1},}, name)
-            , React.createElement(NotifBell, { notifications: notifications, userId: user.id, onMarkRead: onMarkRead, onNotifAction: onNotifAction, C: C,})
+            , React.createElement(NotifBell, { notifications: notifications, userId: user.id, onMarkRead: onMarkRead, onNotifAction: onNotifAction, placement: 'sidebar', C: C,})
           )
           , React.createElement('div', { style: {display:"flex",gap:6,marginBottom:6},}, React.createElement(Btn, { onClick: props.onChangePassword, variant: "outline", small: true, full: true, C: C, style: {borderColor:C.tan+"55",color:C.navIconDim},}, "🔑 Contraseña"))
           , React.createElement(Btn, { onClick: onLogout, variant: "outline", small: true, full: true, C: C, style: {borderColor:C.tan+"55",color:C.navIconDim},}, "Salir")
