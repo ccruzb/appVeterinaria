@@ -119,7 +119,7 @@ function NotifBell(props) {
   var placement=props.placement||"topbar";
   var panelStyle=placement==="sidebar"
     ? {position:"fixed",left:224,bottom:56,background:C.surface,border:"1px solid "+C.border,borderRadius:14,width:340,maxHeight:480,overflowY:"auto",zIndex:500,boxShadow:"0 8px 32px #0003",animation:"fadeIn .15s ease"}
-    : {position:"absolute",right:0,top:44,background:C.surface,border:"1px solid "+C.border,borderRadius:14,width:320,maxHeight:480,overflowY:"auto",zIndex:500,boxShadow:"0 8px 32px #0003",animation:"fadeIn .15s ease"};
+    : {position:"fixed",right:8,top:58,background:C.surface,border:"1px solid "+C.border,borderRadius:14,width:"calc(100vw - 16px)",maxWidth:360,maxHeight:"70vh",overflowY:"auto",zIndex:500,boxShadow:"0 8px 32px #0003",animation:"fadeIn .15s ease"};
   var s1=useState(false); var open=s1[0]; var setOpen=s1[1];
   var mine=useMemo(function(){ return props.notifications.filter(function(n){return n.toId===props.userId;}).sort(function(a,b){return b.ts-a.ts;}); },[props.notifications,props.userId]);
   var unread=useMemo(function(){ return mine.filter(function(n){return !n.read;}).length; },[mine]);
