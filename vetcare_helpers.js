@@ -21,7 +21,7 @@ async function sbUpsertMany(t,rows){try{var r=await fetch(SUPA_URL+"/rest/v1/"+t
 async function sbPatch(t,id,data){try{var r=await fetch(SUPA_URL+"/rest/v1/"+t+"?id=eq."+id,{method:"PATCH",headers:supaH(),body:JSON.stringify(data)});return r.ok;}catch(e){return false;}}
 async function sbDel(t,id){try{var r=await fetch(SUPA_URL+"/rest/v1/"+t+"?id=eq."+id,{method:"DELETE",headers:supaH()});return r.ok;}catch(e){return false;}}
 async function sbDelWhere(t,col,val){try{var r=await fetch(SUPA_URL+"/rest/v1/"+t+"?"+col+"=eq."+encodeURIComponent(val),{method:"DELETE",headers:supaH()});return r.ok;}catch(e){return false;}}
-async function sGet(k){try{if(k===KEYS.session){return localStorage.getItem("vc_session")||null;}var rows=[];if(k===KEYS.users){rows=await sbAll("vc_users");return rows&&rows.length?rows.map(mapUser):null;}if(k===KEYS.pets){rows=await sbAll("vc_pets");return rows&&rows.length?rows.map(mapPet):null;}if(k===KEYS.records){rows=await sbAll("vc_records");return rows&&rows.length?rows.map(mapRecord):[];}if(k===KEYS.appts){rows=await sbAll("vc_appointments");return rows&&rows.length?rows.map(mapAppt):[];}if(k===KEYS.reqs){rows=await sbAll("vc_appt_requests");return rows&&rows.length?rows.map(mapReq):[];}if(k===KEYS.notifs){rows=await sbAll("vc_notifications");return rows&&rows.length?rows.map(mapNotif):[];}if(k===KEYS.blocked){rows=await sbAll("vc_blocked_days");return rows&&rows.length?rows.map(mapBlocked):[];}return null;}catch(e){return null;}}
+async function sGet(k){try{if(k===KEYS.session){return localStorage.getItem("vc_session")||null;}if(k===KEYS.users){var ru=await sbAll("vc_users");return ru&&ru.length?ru.map(mapUser):null;}if(k===KEYS.pets){var rp=await sbAll("vc_pets");return rp&&rp.length?rp.map(mapPet):null;}if(k===KEYS.records){var rr=await sbAll("vc_records");return rr&&rr.length?rr.map(mapRecord):[];}if(k===KEYS.appts){var ra=await sbAll("vc_appointments");return ra&&ra.length?ra.map(mapAppt):[];}if(k===KEYS.reqs){var rq=await sbAll("vc_appt_requests");return rq&&rq.length?rq.map(mapReq):[];}if(k===KEYS.notifs){var rn=await sbAll("vc_notifications");return rn&&rn.length?rn.map(mapNotif):[];}if(k===KEYS.blocked){var rb=await sbAll("vc_blocked_days");return rb&&rb.length?rb.map(mapBlocked):[];}return null;}catch(e){return null;}}
 async function sSet(k,v){try{if(k===KEYS.session){if(v===null||v==="null")localStorage.removeItem("vc_session");else localStorage.setItem("vc_session",v);return;}if(!Array.isArray(v))return;if(k===KEYS.users){await sbUpsertMany("vc_users",v.map(userToDb));return;}if(k===KEYS.pets){await sbUpsertMany("vc_pets",v.map(petToDb));return;}if(k===KEYS.records){await sbUpsertMany("vc_records",v.map(recordToDb));return;}if(k===KEYS.appts){await sbUpsertMany("vc_appointments",v.map(apptToDb));return;}if(k===KEYS.reqs){await sbUpsertMany("vc_appt_requests",v.map(reqToDb));return;}if(k===KEYS.notifs){await sbUpsertMany("vc_notifications",v.map(notifToDb));return;}if(k===KEYS.blocked){await sbUpsertMany("vc_blocked_days",v.map(mapBlocked));return;}}catch(e){}}
 var BREEDS={Perro:["Beagle","Border Collie","Boxer","Bulldog Francés","Caniche","Chihuahua","Dálmata","Doberman","Golden Retriever","Husky Siberiano","Labrador Retriever","Mestizo","Pastor Alemán","Rottweiler","Shih Tzu","Yorkshire Terrier","Gran Danés","Pomerania"],Gato:["Angora Turco","Azul Ruso","Bengalí","British Shorthair","Maine Coon","Mestizo","Persa","Ragdoll","Scottish Fold","Siamés","Siberiano"],Ave:["Agapornis","Cacatúa","Canario","Guacamayo","Loro","Ninfa","Periquito"],Conejo:["Angora","Belier","Mini Rex","New Zealand","Rex"],Reptil:["Bearded Dragon","Gecko Leopardo","Iguana Verde","Tortuga de Tierra"],Pez:["Betta","Goldfish","Guppy","Neon Tetra"],Otro:["Cobayo","Erizo","Hurón","Rata"]};
 var SEED_USERS=[{id:"u0",role:"admin",firstName:"Admin",lastName:"VetCare",email:"admin@vetcare.com",password:"admin2025",docType:"DNI",docNum:"00000001",blocked:false,phone:""},{id:"u1",role:"vet",firstName:"German",lastName:"Cabrera",email:"german@clinica.com",password:"vetcare2025",docType:"DNI",docNum:"12345678",blocked:false,phone:""},{id:"u2",role:"owner",firstName:"Carlos",lastName:"Ruiz",email:"carlos@mail.com",password:"1234",docType:"DNI",docNum:"87654321",blocked:false,phone:"999111222"},{id:"u3",role:"owner",firstName:"Ana",lastName:"Torres",email:"ana@mail.com",password:"1234",docType:"DNI",docNum:"11223344",blocked:false,phone:"999333444"},{id:"u4",role:"owner",firstName:"Miguel",lastName:"Fernandez",email:"miguel@mail.com",password:"1234",docType:"DNI",docNum:"22334455",blocked:false,phone:"999222333"},{id:"u5",role:"owner",firstName:"Lucia",lastName:"Gomez",email:"lucia@mail.com",password:"1234",docType:"DNI",docNum:"33445566",blocked:false,phone:"999333555"},{id:"u6",role:"owner",firstName:"Roberto",lastName:"Sanchez",email:"roberto@mail.com",password:"1234",docType:"DNI",docNum:"44556677",blocked:false,phone:"999444666"},{id:"u7",role:"owner",firstName:"Patricia",lastName:"Lopez",email:"patricia@mail.com",password:"1234",docType:"DNI",docNum:"55667788",blocked:false,phone:"999555777"},{id:"u8",role:"owner",firstName:"Jorge",lastName:"Martinez",email:"jorge@mail.com",password:"1234",docType:"DNI",docNum:"66778899",blocked:false,phone:"999666888"},{id:"u9",role:"owner",firstName:"Sofia",lastName:"Diaz",email:"sofia@mail.com",password:"1234",docType:"DNI",docNum:"77889900",blocked:false,phone:"999777999"}];
@@ -38,9 +38,34 @@ function calcAge(dob){if(!dob)return null;var mo=(new Date().getFullYear()-new D
 function sanitizePhone(v){return v.replace(/\D/g,"").slice(0,9);}
 function validateDoc(type,num){if(!num)return"Numero obligatorio.";if(type==="DNI"){if(!/^\d{8}$/.test(num))return"DNI: 8 digitos exactos.";}else{if(!/^[A-Z]\d{8}$/.test(num))return"Formato: letra + 8 digitos.";}return"";}
 var TIME_SLOTS=[];for(var _h=8;_h<19;_h++){for(var _m=0;_m<60;_m+=30){TIME_SLOTS.push((_h<10?"0":"")+_h+":"+(_m===0?"00":"30"));}}
-function useDark(){var mq=typeof window!=="undefined"?window.matchMedia("(prefers-color-scheme: dark)"):{matches:false};var d=useState(mq.matches);var dark=d[0],setDark=d[1];useEffect(function(){var handler=function(e){setDark(e.matches);};mq.addEventListener("change",handler);return function(){mq.removeEventListener("change",handler);},[]); return dark;}
-function useIsMobile(){var s=useState(window.innerWidth<720);var mob=s[0],setMob=s[1];useEffect(function(){var h=function(){setMob(window.innerWidth<720);};window.addEventListener("resize",h);return function(){window.removeEventListener("resize",h);},[]); return mob;}
-function useToast(){var s=useState([]);var toasts=s[0];var setToasts=s[1];var push=useCallback(function(msg,type){type=type||"success";var id=genId();setToasts(function(t){return t.concat([{id:id,msg:msg,type:type}]);});setTimeout(function(){setToasts(function(t){return t.filter(function(x){return x.id!==id;});});},3800);},[]);return{toasts:toasts,push:push};}
+function useDark(){
+  var mq=typeof window!=="undefined"?window.matchMedia("(prefers-color-scheme: dark)"):{matches:false};
+  var d=useState(mq.matches); var dark=d[0],setDark=d[1];
+  useEffect(function(){
+    var handler=function(e){setDark(e.matches);};
+    mq.addEventListener("change",handler);
+    return function(){mq.removeEventListener("change",handler);};
+  },[]);
+  return dark;
+}
+function useIsMobile(){
+  var s=useState(window.innerWidth<720); var mob=s[0],setMob=s[1];
+  useEffect(function(){
+    var h=function(){setMob(window.innerWidth<720);};
+    window.addEventListener("resize",h);
+    return function(){window.removeEventListener("resize",h);};
+  },[]);
+  return mob;
+}
+function useToast(){
+  var s=useState([]); var toasts=s[0]; var setToasts=s[1];
+  var push=useCallback(function(msg,type){
+    type=type||"success"; var id=genId();
+    setToasts(function(t){return t.concat([{id:id,msg:msg,type:type}]);});
+    setTimeout(function(){setToasts(function(t){return t.filter(function(x){return x.id!==id;});});},3800);
+  },[]);
+  return {toasts:toasts,push:push};
+}
 function byId(arr,id){for(var _i=0;_i<arr.length;_i++){if(arr[_i].id===id)return arr[_i];}return null;}
 var sOverflow={overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"};
 function byField(arr,field,val){for(var _i=0;_i<arr.length;_i++){if(arr[_i][field]===val)return arr[_i];}return null;}
