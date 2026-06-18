@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap"/>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.26.0/babel.min.js"></script>
   <style>
 /* ============================================================
    VetCare - Estilos globales
@@ -106,8 +106,6 @@ label {
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com"/>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Playfair+Display:wght@600&display=swap"/>
 </head>
 <body>
   <div id="loading">
@@ -117,7 +115,7 @@ label {
     <div class="ld-bar"><div class="ld-fill"></div></div>
   </div>
   <div id="root"></div>
-  <script type="text/babel" data-presets="react" data-type="script">
+  <script>
 var useState=React.useState,useEffect=React.useEffect,useCallback=React.useCallback,useMemo=React.useMemo;
 
 // ============================================================
@@ -316,7 +314,6 @@ function useToast() {
   },[]);
   return {toasts:toasts,push:push};
 }
-var useState=React.useState,useEffect=React.useEffect,useCallback=React.useCallback,useMemo=React.useMemo;
 
 // ============================================================
 // PALETA - Colores y CSS dinámico
@@ -376,6 +373,8 @@ function byId(arr,id){ for(var _i=0;_i<arr.length;_i++){if(arr[_i].id===id)retur
 var sOverflow={overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"};
 function byField(arr,field,val){ for(var _i=0;_i<arr.length;_i++){if(arr[_i][field]===val)return arr[_i];} return null; }
 
+</script>
+<script type="text/babel" data-presets="react" data-type="script">
 // ============================================================
 // COMPONENTES PRIMITIVOS - Btn, Card, Field, Modal, Badge...
 // ============================================================
