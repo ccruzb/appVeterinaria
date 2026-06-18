@@ -1,4 +1,3 @@
-
 // ============================================================
 // COMPONENTES PRIMITIVOS - Btn, Card, Field, Modal, Badge...
 // ============================================================
@@ -129,7 +128,7 @@ function NotifBell(props) {
       )
       , open&&React.createElement('div', { style: {position:"fixed",inset:0,zIndex:198}, onClick: function(){setOpen(false);},})
       , open&&(
-        React.createElement('div', { style: {position:"absolute",right:0,top:40,background:C.surface,border:"1px solid "+C.border,borderRadius:14,width:320,maxHeight:480,overflowY:"auto",zIndex:199,boxShadow:"0 8px 32px #0003",animation:"fadeIn .15s ease"},}
+        React.createElement('div', { style: {position:"fixed",left:220,bottom:60,background:C.surface,border:"1px solid "+C.border,borderRadius:14,width:340,maxHeight:480,overflowY:"auto",zIndex:500,boxShadow:"0 8px 32px #0003",animation:"fadeIn .15s ease"},}
           , React.createElement('div', { style: {padding:"12px 16px",borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"center"},}
             , React.createElement('span', { style: {fontWeight:800,fontSize:14,color:C.brownDark},}, "Notificaciones"+(unread>0?" ("+unread+" nuevas)":""))
             , unread>0&&React.createElement('button', { onClick: function(){props.onMarkRead(mine.filter(function(n){return !n.read;}).map(function(n){return n.id;}));}, style: {background:"none",border:"none",color:C.blue,fontSize:12,fontWeight:700,cursor:"pointer"},}, "Leer todas" )
@@ -604,6 +603,7 @@ function AddUserModal(props) {
   var s6=useState("DNI"); var docType=s6[0]; var setDocType=s6[1];
   var s7=useState(""); var docNum=s7[0]; var setDocNum=s7[1];
   var s8=useState(""); var phone=s8[0]; var setPhone=s8[1];
+  var s10=useState(""); var address=s10[0]; var setAddress=s10[1];
   var s9=useState({}); var errors=s9[0]; var setErrors=s9[1];
   function submit(){
     var e={};
@@ -629,6 +629,7 @@ function AddUserModal(props) {
         , React.createElement(Field, { label: "Nº documento" , error: errors.docNum, C: C,}, React.createElement('input', { value: docNum, onChange: function(e){setDocNum(e.target.value);}, className: errors.docNum?"err":"",}))
       )
       , React.createElement(Field, { label: "Telefono / WhatsApp"  , C: C,}, React.createElement('input', { value: phone, onChange: function(e){setPhone(sanitizePhone(e.target.value));}, placeholder: "999999999", maxLength: 9,}))
+      , React.createElement(Field, { label: "Dirección", C: C,}, React.createElement('input', { value: address, onChange: function(e){setAddress(e.target.value);}, placeholder: "Ej: Av. Principal 123",}))
       , React.createElement(Field, { label: "Email *" , error: errors.email, C: C,}, React.createElement('input', { type: "email", value: email, onChange: function(e){setEmail(e.target.value);}, className: errors.email?"err":"",}))
       , React.createElement(PasswordField, { label: "Contrasena *" , value: pass, onChange: function(e){setPass(e.target.value);}, error: errors.pass, C: C,})
       , React.createElement('div', { style: {display:"flex",gap:10,marginTop:8},}, React.createElement(Btn, { onClick: submit, full: true, C: C,}, "Crear"), React.createElement(Btn, { variant: "ghost", onClick: props.onClose, full: true, C: C,}, "Cancelar"))
