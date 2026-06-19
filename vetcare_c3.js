@@ -676,3 +676,371 @@ function SurgeriesList(props) {
 // ============================================================
 // APP - Componente principal, estado global, handlers
 // ============================================================
+
+// ============================================================
+// CONSTANTES FISIOLÓGICAS
+// ============================================================
+
+var PHYSIO_DATA = {
+  "Perro": {
+    icon: "🐶",
+    color: "#2E86C1",
+    sections: [
+      {
+        title: "Signos Vitales",
+        icon: "❤️",
+        items: [
+          { param: "Frecuencia Cardíaca", value: "60 – 140 lpm", note: "Varía según tamaño: razas grandes 60-90, pequeñas 100-140" },
+          { param: "Frecuencia Respiratoria", value: "10 – 30 rpm", note: "En reposo" },
+          { param: "Temperatura Rectal", value: "37.5 – 39.2 °C", note: "Promedio 38.5 °C" },
+          { param: "Presión Arterial Sistólica", value: "110 – 160 mmHg", note: "" },
+          { param: "Tiempo Llenado Capilar", value: "< 2 segundos", note: "" }
+        ]
+      },
+      {
+        title: "Parámetros Hematológicos",
+        icon: "🩸",
+        items: [
+          { param: "Eritrocitos (RBC)", value: "5.5 – 8.5 × 10⁶/µL", note: "" },
+          { param: "Hematocrito (HCT)", value: "37 – 55 %", note: "" },
+          { param: "Hemoglobina", value: "12 – 18 g/dL", note: "" },
+          { param: "Leucocitos (WBC)", value: "6,000 – 17,000 /µL", note: "" },
+          { param: "Plaquetas", value: "200,000 – 500,000 /µL", note: "" }
+        ]
+      },
+      {
+        title: "Bioquímica Sérica",
+        icon: "🧪",
+        items: [
+          { param: "Glucosa", value: "70 – 110 mg/dL", note: "" },
+          { param: "BUN (Urea)", value: "7 – 27 mg/dL", note: "" },
+          { param: "Creatinina", value: "0.5 – 1.5 mg/dL", note: "" },
+          { param: "ALT (GPT)", value: "10 – 58 U/L", note: "" },
+          { param: "Fosfatasa Alcalina", value: "20 – 150 U/L", note: "" },
+          { param: "Proteínas Totales", value: "5.4 – 7.1 g/dL", note: "" },
+          { param: "Calcio", value: "8.9 – 11.4 mg/dL", note: "" }
+        ]
+      },
+      {
+        title: "Datos Reproductivos",
+        icon: "🔄",
+        items: [
+          { param: "Gestación", value: "58 – 65 días", note: "Promedio 63 días" },
+          { param: "Pubertad (hembra)", value: "6 – 12 meses", note: "Según raza" },
+          { param: "Ciclo estral", value: "6 – 12 meses", note: "" }
+        ]
+      }
+    ]
+  },
+  "Gato": {
+    icon: "🐱",
+    color: "#8E44AD",
+    sections: [
+      {
+        title: "Signos Vitales",
+        icon: "❤️",
+        items: [
+          { param: "Frecuencia Cardíaca", value: "120 – 240 lpm", note: "Promedio 180 lpm" },
+          { param: "Frecuencia Respiratoria", value: "20 – 30 rpm", note: "En reposo" },
+          { param: "Temperatura Rectal", value: "38.0 – 39.5 °C", note: "Promedio 38.6 °C" },
+          { param: "Presión Arterial Sistólica", value: "120 – 170 mmHg", note: "" },
+          { param: "Tiempo Llenado Capilar", value: "< 2 segundos", note: "" }
+        ]
+      },
+      {
+        title: "Parámetros Hematológicos",
+        icon: "🩸",
+        items: [
+          { param: "Eritrocitos (RBC)", value: "5.0 – 10.0 × 10⁶/µL", note: "" },
+          { param: "Hematocrito (HCT)", value: "29 – 48 %", note: "" },
+          { param: "Hemoglobina", value: "8 – 15 g/dL", note: "" },
+          { param: "Leucocitos (WBC)", value: "5,500 – 19,500 /µL", note: "" },
+          { param: "Plaquetas", value: "300,000 – 700,000 /µL", note: "" }
+        ]
+      },
+      {
+        title: "Bioquímica Sérica",
+        icon: "🧪",
+        items: [
+          { param: "Glucosa", value: "70 – 120 mg/dL", note: "Puede subir por estrés" },
+          { param: "BUN (Urea)", value: "14 – 36 mg/dL", note: "" },
+          { param: "Creatinina", value: "0.8 – 2.4 mg/dL", note: "" },
+          { param: "ALT (GPT)", value: "6 – 83 U/L", note: "" },
+          { param: "Fosfatasa Alcalina", value: "12 – 65 U/L", note: "" },
+          { param: "Proteínas Totales", value: "5.7 – 7.8 g/dL", note: "" },
+          { param: "Calcio", value: "7.8 – 11.0 mg/dL", note: "" }
+        ]
+      },
+      {
+        title: "Datos Reproductivos",
+        icon: "🔄",
+        items: [
+          { param: "Gestación", value: "58 – 68 días", note: "Promedio 65 días" },
+          { param: "Pubertad (hembra)", value: "4 – 10 meses", note: "" },
+          { param: "Ciclo estral", value: "Poliéstrica estacional", note: "" }
+        ]
+      }
+    ]
+  },
+  "Ave": {
+    icon: "🦜",
+    color: "#27AE60",
+    sections: [
+      {
+        title: "Signos Vitales",
+        icon: "❤️",
+        items: [
+          { param: "Frecuencia Cardíaca", value: "200 – 400 lpm", note: "Varía mucho según especie y tamaño" },
+          { param: "Frecuencia Respiratoria", value: "25 – 60 rpm", note: "" },
+          { param: "Temperatura Corporal", value: "40.0 – 42.0 °C", note: "Aves tienen temperatura más alta" },
+          { param: "Peso corporal normal", value: "Especie-dependiente", note: "Monitorear pérdida > 5% del peso" }
+        ]
+      },
+      {
+        title: "Parámetros Hematológicos",
+        icon: "🩸",
+        items: [
+          { param: "Eritrocitos (RBC)", value: "2.5 – 4.5 × 10⁶/µL", note: "Nucleados en aves" },
+          { param: "Hematocrito (HCT)", value: "35 – 55 %", note: "" },
+          { param: "Hemoglobina", value: "12 – 18 g/dL", note: "" },
+          { param: "Leucocitos (WBC)", value: "3,000 – 10,000 /µL", note: "Heterófilos en lugar de neutrófilos" }
+        ]
+      },
+      {
+        title: "Bioquímica Sérica",
+        icon: "🧪",
+        items: [
+          { param: "Glucosa", value: "200 – 350 mg/dL", note: "Aves tienen glucosa basal más alta" },
+          { param: "Ácido Úrico", value: "2 – 10 mg/dL", note: "Equivalente a urea en mamíferos" },
+          { param: "ALT / AST", value: "< 100 U/L", note: "" },
+          { param: "Calcio total", value: "8 – 11 mg/dL", note: "Hembras en postura: hasta 30 mg/dL" }
+        ]
+      },
+      {
+        title: "Datos Reproductivos",
+        icon: "🔄",
+        items: [
+          { param: "Incubación (periquito)", value: "18 días", note: "" },
+          { param: "Incubación (loro/cacatúa)", value: "21 – 30 días", note: "" },
+          { param: "Pubertad", value: "6 – 24 meses", note: "Varía por especie" }
+        ]
+      }
+    ]
+  },
+  "Conejo": {
+    icon: "🐰",
+    color: "#E67E22",
+    sections: [
+      {
+        title: "Signos Vitales",
+        icon: "❤️",
+        items: [
+          { param: "Frecuencia Cardíaca", value: "130 – 325 lpm", note: "Promedio 205 lpm" },
+          { param: "Frecuencia Respiratoria", value: "30 – 60 rpm", note: "" },
+          { param: "Temperatura Rectal", value: "38.5 – 40.0 °C", note: "" },
+          { param: "Tiempo Llenado Capilar", value: "< 2 segundos", note: "" }
+        ]
+      },
+      {
+        title: "Parámetros Hematológicos",
+        icon: "🩸",
+        items: [
+          { param: "Eritrocitos (RBC)", value: "4.0 – 7.0 × 10⁶/µL", note: "" },
+          { param: "Hematocrito (HCT)", value: "33 – 50 %", note: "" },
+          { param: "Hemoglobina", value: "10 – 15 g/dL", note: "" },
+          { param: "Leucocitos (WBC)", value: "5,000 – 12,000 /µL", note: "Linfocitos predominan (40-75%)" }
+        ]
+      },
+      {
+        title: "Bioquímica Sérica",
+        icon: "🧪",
+        items: [
+          { param: "Glucosa", value: "75 – 150 mg/dL", note: "" },
+          { param: "BUN (Urea)", value: "13 – 29 mg/dL", note: "" },
+          { param: "Creatinina", value: "0.5 – 2.5 mg/dL", note: "" },
+          { param: "Calcio total", value: "5.6 – 12.5 mg/dL", note: "Conejos excretan calcio por orina (normal)" }
+        ]
+      },
+      {
+        title: "Datos Reproductivos",
+        icon: "🔄",
+        items: [
+          { param: "Gestación", value: "29 – 35 días", note: "Promedio 31 días" },
+          { param: "Pubertad hembra", value: "4 – 6 meses", note: "" },
+          { param: "Pubertad macho", value: "5 – 8 meses", note: "" },
+          { param: "Ovulación", value: "Inducida por la monta", note: "" }
+        ]
+      }
+    ]
+  },
+  "Reptil": {
+    icon: "🦎",
+    color: "#16A085",
+    sections: [
+      {
+        title: "Signos Vitales",
+        icon: "❤️",
+        items: [
+          { param: "Frecuencia Cardíaca", value: "20 – 80 lpm", note: "Depende temperatura ambiental" },
+          { param: "Frecuencia Respiratoria", value: "4 – 20 rpm", note: "Muy variable" },
+          { param: "Temperatura Corporal", value: "25 – 35 °C", note: "Ectotermos — depende del ambiente" },
+          { param: "Temperatura óptima (iguana)", value: "30 – 37 °C", note: "Zona de preferencia térmica" }
+        ]
+      },
+      {
+        title: "Bioquímica Sérica",
+        icon: "🧪",
+        items: [
+          { param: "Glucosa", value: "60 – 120 mg/dL", note: "Varía por especie" },
+          { param: "Ácido Úrico", value: "2 – 8 mg/dL", note: "Principal metabolito nitrogenado" },
+          { param: "Calcio total", value: "8 – 12 mg/dL", note: "Hembras en reproducción pueden duplicarlo" },
+          { param: "Fósforo", value: "1.5 – 4.0 mg/dL", note: "Relación Ca:P debe ser ≥ 1.5:1" }
+        ]
+      },
+      {
+        title: "Notas Clínicas",
+        icon: "📋",
+        items: [
+          { param: "Muda de piel", value: "Cada 4 – 8 semanas", note: "Ecdisis incompleta indica problema" },
+          { param: "Ayuno preoperatorio", value: "24 – 48 horas", note: "" },
+          { param: "Período digestión", value: "2 – 4 días post ingesta", note: "No manejar durante este período" }
+        ]
+      }
+    ]
+  },
+  "Otro": {
+    icon: "🐾",
+    color: "#7F8C8D",
+    sections: [
+      {
+        title: "Cobayo (Cavia porcellus)",
+        icon: "🐹",
+        items: [
+          { param: "Frecuencia Cardíaca", value: "230 – 380 lpm", note: "" },
+          { param: "Frecuencia Respiratoria", value: "42 – 104 rpm", note: "" },
+          { param: "Temperatura Rectal", value: "37.2 – 39.5 °C", note: "" },
+          { param: "Gestación", value: "59 – 72 días", note: "Promedio 63 días — crías precociales" }
+        ]
+      },
+      {
+        title: "Hurón (Mustela putorius)",
+        icon: "🦔",
+        items: [
+          { param: "Frecuencia Cardíaca", value: "180 – 250 lpm", note: "" },
+          { param: "Frecuencia Respiratoria", value: "33 – 36 rpm", note: "" },
+          { param: "Temperatura Rectal", value: "37.8 – 40.0 °C", note: "" },
+          { param: "Gestación", value: "41 – 43 días", note: "" }
+        ]
+      },
+      {
+        title: "Rata (Rattus norvegicus)",
+        icon: "🐀",
+        items: [
+          { param: "Frecuencia Cardíaca", value: "250 – 450 lpm", note: "" },
+          { param: "Frecuencia Respiratoria", value: "70 – 115 rpm", note: "" },
+          { param: "Temperatura Rectal", value: "35.9 – 37.5 °C", note: "" },
+          { param: "Gestación", value: "20 – 22 días", note: "" }
+        ]
+      }
+    ]
+  }
+};
+
+function PhysioConstants(props) {
+  var C = props.C;
+  var isMobile = useIsMobile();
+  var SPECIES_LIST = ["Perro","Gato","Ave","Conejo","Reptil","Otro"];
+  var s1 = useState("Perro"); var selSpecies = s1[0]; var setSelSpecies = s1[1];
+  var s2 = useState(null); var openSection = s2[0]; var setOpenSection = s2[1];
+  var data = PHYSIO_DATA[selSpecies];
+
+  return React.createElement('div', null,
+    React.createElement('div', { style: { display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4, flexWrap:"wrap", gap:10 }},
+      React.createElement('div', null,
+        React.createElement('h2', { style: { fontFamily:"'Playfair Display',serif", fontSize:isMobile?22:26, color:C.brownDark, marginBottom:2 }}, "Constantes Fisiológicas"),
+        React.createElement('p', { style: { color:C.textMid, fontSize:13 }}, "Valores de referencia por especie")
+      )
+    ),
+
+    React.createElement('div', { style: { display:"flex", gap:8, flexWrap:"wrap", marginBottom:20 }},
+      SPECIES_LIST.map(function(sp) {
+        var d = PHYSIO_DATA[sp];
+        var active = selSpecies === sp;
+        return React.createElement('button', {
+          key: sp,
+          onClick: function() { setSelSpecies(sp); setOpenSection(null); },
+          style: {
+            display:"flex", alignItems:"center", gap:6,
+            padding: isMobile?"8px 12px":"10px 16px",
+            borderRadius:12,
+            border:"2px solid " + (active ? d.color : C.border),
+            background: active ? d.color + "18" : C.surface,
+            color: active ? d.color : C.textMid,
+            fontWeight: active ? 800 : 600,
+            fontSize:13, cursor:"pointer",
+            transition:"all .15s"
+          }
+        }, d.icon, " ", sp);
+      })
+    ),
+
+    data && React.createElement('div', null,
+      React.createElement('div', { style: { display:"flex", alignItems:"center", gap:12, padding:"14px 18px", background: data.color+"18", borderRadius:14, marginBottom:16, border:"1.5px solid "+data.color+"44" }},
+        React.createElement('div', { style: { fontSize:40 }}, data.icon),
+        React.createElement('div', null,
+          React.createElement('div', { style: { fontSize:18, fontWeight:800, color:data.color }}, selSpecies),
+          React.createElement('div', { style: { fontSize:12, color:C.textMid, marginTop:2 }}, data.sections.length + " categorías de referencia")
+        )
+      ),
+
+      data.sections.map(function(section, si) {
+        var isOpen = openSection === si || openSection === null;
+        return React.createElement('div', { key: si, style: { marginBottom:10, borderRadius:14, border:"1px solid "+C.border, overflow:"hidden" }},
+          React.createElement('button', {
+            onClick: function() { setOpenSection(isOpen && openSection === si ? null : si); },
+            style: {
+              width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between",
+              padding:"14px 18px", background: isOpen ? data.color+"0F" : C.surface,
+              border:"none", cursor:"pointer", textAlign:"left"
+            }
+          },
+            React.createElement('div', { style: { display:"flex", alignItems:"center", gap:10 }},
+              React.createElement('span', { style: { fontSize:20 }}, section.icon),
+              React.createElement('span', { style: { fontWeight:800, fontSize:15, color:C.brownDark }}, section.title)
+            ),
+            React.createElement('span', { style: { color:C.textLight, fontSize:18, transition:"transform .2s", display:"inline-block", transform: isOpen?"rotate(90deg)":"rotate(0deg)" }}, "›")
+          ),
+
+          isOpen && React.createElement('div', { style: { overflowX:"auto" }},
+            React.createElement('table', { style: { width:"100%", borderCollapse:"collapse" }},
+              React.createElement('thead', null,
+                React.createElement('tr', { style: { background:C.peach }},
+                  React.createElement('th', { style: { padding:"8px 14px", textAlign:"left", fontSize:11, fontWeight:800, color:C.textMid, textTransform:"uppercase", letterSpacing:0.8, borderBottom:"1px solid "+C.border }}, "Parámetro"),
+                  React.createElement('th', { style: { padding:"8px 14px", textAlign:"center", fontSize:11, fontWeight:800, color:C.textMid, textTransform:"uppercase", letterSpacing:0.8, borderBottom:"1px solid "+C.border, whiteSpace:"nowrap" }}, "Valor de referencia"),
+                  !isMobile && React.createElement('th', { style: { padding:"8px 14px", textAlign:"left", fontSize:11, fontWeight:800, color:C.textMid, textTransform:"uppercase", letterSpacing:0.8, borderBottom:"1px solid "+C.border }}, "Nota")
+                )
+              ),
+              React.createElement('tbody', null,
+                section.items.map(function(item, ii) {
+                  return React.createElement('tr', { key: ii, style: { background: ii%2===0 ? C.surface : C.cream }},
+                    React.createElement('td', { style: { padding:"10px 14px", fontSize:13, fontWeight:600, color:C.text, borderBottom:"1px solid "+C.border+"55" }}, item.param),
+                    React.createElement('td', { style: { padding:"10px 14px", fontSize:13, fontWeight:800, color:data.color, textAlign:"center", borderBottom:"1px solid "+C.border+"55", whiteSpace:"nowrap" }}, item.value),
+                    !isMobile && React.createElement('td', { style: { padding:"10px 14px", fontSize:12, color:C.textLight, borderBottom:"1px solid "+C.border+"55" }}, item.note||"—")
+                  );
+                })
+              )
+            ),
+            isMobile && React.createElement('div', { style: { padding:"8px 14px 12px" }},
+              section.items.map(function(item, ii) {
+                return item.note ? React.createElement('div', { key: ii, style: { fontSize:11, color:C.textLight, marginBottom:2 }},
+                  React.createElement('span', { style: { fontWeight:700, color:C.textMid }}, item.param + ": "),
+                  item.note
+                ) : null;
+              })
+            )
+          )
+        );
+      })
+    )
+  );
+}

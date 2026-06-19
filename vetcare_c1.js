@@ -1,3 +1,4 @@
+
 // ============================================================
 // COMPONENTES PRIMITIVOS - Btn, Card, Field, Modal, Badge...
 // ============================================================
@@ -263,7 +264,7 @@ function Shell(props) {
   var notifications=props.notifications, onMarkRead=props.onMarkRead, onNotifAction=props.onNotifAction, C=props.C;
   var isMobile=useIsMobile();
   var isVet=user.role==="vet", isAdmin=user.role==="admin";
-  var vetTabs=[{id:"dashboard",icon:"📊",label:"Dashboard"},{id:"pets",icon:"🐾",label:"Pacientes"},{id:"records",icon:"📋",label:"Historias"},{id:"surgeries",icon:"🔬",label:"Cirugías"},{id:"calendar",icon:"📅",label:"Calendario"}];
+  var vetTabs=[{id:"dashboard",icon:"📊",label:"Dashboard"},{id:"pets",icon:"🐾",label:"Pacientes"},{id:"records",icon:"📋",label:"Historias"},{id:"surgeries",icon:"🔬",label:"Cirugías"},{id:"physio",icon:"📐",label:"Fisiología"},{id:"calendar",icon:"📅",label:"Calendario"}];
   var ownerTabs=[{id:"mypets",icon:"🐾",label:"Mascotas"},{id:"history",icon:"📋",label:"Historial"},{id:"calendar",icon:"📅",label:"Citas"}];
   var adminTabs=[{id:"dashboard",icon:"📊",label:"Dashboard"},{id:"users",icon:"👥",label:"Usuarios"},{id:"surgeries",icon:"🔬",label:"Cirugías"},{id:"calendar",icon:"📅",label:"Calendario"},{id:"blocked",icon:"🚫",label:"Bloqueados"}];
   var tabs=isAdmin?adminTabs:isVet?vetTabs:ownerTabs;
