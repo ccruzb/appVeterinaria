@@ -100,9 +100,7 @@ function App() {
     if(!confirm("Cancelar esta cita?"))return;
     var na=appointments.map(function(x){return x.id===a.id?Object.assign({},x,{status:"cancelled"}):x;});
     await sSet(KEYS.appts,na); setAppointments(na);
-    var pet=byId(pets,a.petId);
-    var owner=byId(users,a.ownerId);
-    var vet=byId(users,a.vetId);
+    var pet=byId(pets,a.petId); var owner=byId(users,a.ownerId); var vet=byId(users,a.vetId);
     if(mode==="owner"){ if(vet){await pushNotif(vet.id,fullName(owner)+" rechazo la cita de "+(pet&&pet.name),"❌");simEmail(vet.email,"Cita rechazada",push);} }
     else { if(owner){await pushNotif(owner.id,"Tu cita del "+fmtDate(a.date)+" fue cancelada","❌");simEmail(owner.email,"Cita cancelada",push);simWA(owner.phone,"Cita cancelada",push);} }
     push("Cita cancelada");
@@ -111,13 +109,11 @@ function App() {
     if(mode==="confirmed"){
       var na=appointments.map(function(x){return x.id===a.id?Object.assign({},x,{status:"confirmed"}):x;});
       await sSet(KEYS.appts,na); setAppointments(na);
-      var pet=byId(pets,a.petId);
-      var vet=byId(users,a.vetId);
+      var pet=byId(pets,a.petId); var vet=byId(users,a.vetId);
       if(vet){await pushNotif(vet.id,fullName(user)+" confirmo la cita de "+(pet&&pet.name),"✅");simEmail(vet.email,"Cita confirmada",push);}
       push("Cita confirmada");
     } else {
-      var _pet2=byId(pets,a.petId);
-      var _vet2=byId(users,a.vetId);
+      var _pet2=byId(pets,a.petId); var _vet2=byId(users,a.vetId);
       if(_vet2){ await pushNotif(_vet2.id,fullName(user)+" solicita reprogramar la cita de "+(_pet2&&_pet2.name)+" del "+fmtDate(a.date)+" "+a.time,"🔄"); simEmail(_vet2.email,"Solicitud de reprogramacion",push); simWA(_vet2.phone,"Solicitud de reprogramacion",push); }
       setModal({type:"apptForm",data:Object.assign({},a,{id:null,status:"pending",date:"",time:""})});
     }
@@ -126,9 +122,7 @@ function App() {
     var targets=appointments.filter(function(a){return apptIds.indexOf(a.id)>=0;});
     var count=0;
     for(var i=0;i<targets.length;i++){
-      var a=targets[i];
-      var pet=byId(pets,a.petId);
-      var owner=byId(users,a.ownerId);
+      var a=targets[i]; var pet=byId(pets,a.petId); var owner=byId(users,a.ownerId);
       if(owner){await pushNotif(owner.id,"Dr. confirma tu cita de "+(pet&&pet.name)+" "+fmtDate(a.date),"📨",{actionId:a.id});simEmail(owner.email,"Confirmacion de cita",push);simWA(owner.phone,"Confirma tu cita de "+fmtDate(a.date),push);count++;}
     }
     push("Solicitudes enviadas a "+count+" dueno(s)");
@@ -147,8 +141,7 @@ function App() {
     push("Solicitud enviada al veterinario");
   }
   async function approveReq(req){
-    var pet=byId(pets,req.petId);
-    var owner=byId(users,req.ownerId);
+    var pet=byId(pets,req.petId); var owner=byId(users,req.ownerId);
     var newAppt={petId:req.petId,date:req.date,time:req.time,type:req.type,notes:req.notes,id:"a"+genId(),ownerId:req.ownerId,vetId:"u1",status:"confirmed",attended:null};
     var newA=appointments.concat([newAppt]); await sSet(KEYS.appts,newA); setAppointments(newA);
     var nrq=apptReqs.map(function(r){return r.id===req.id?Object.assign({},r,{status:"approved"}):r;}); await sSet(KEYS.reqs,nrq); setApptReqs(nrq);
@@ -156,8 +149,7 @@ function App() {
     push("Solicitud aprobada y cita creada");
   }
   async function rejectReq(req){
-    var pet=byId(pets,req.petId);
-    var owner=byId(users,req.ownerId);
+    var pet=byId(pets,req.petId); var owner=byId(users,req.ownerId);
     var nrq=apptReqs.map(function(r){return r.id===req.id?Object.assign({},r,{status:"rejected"}):r;}); await sSet(KEYS.reqs,nrq); setApptReqs(nrq);
     if(owner){await pushNotif(owner.id,"Tu solicitud para "+(pet&&pet.name)+" fue rechazada","❌");simEmail(owner.email,"Solicitud rechazada",push);simWA(owner.phone,"Tu solicitud fue rechazada",push);}
     push("Solicitud rechazada");
@@ -184,9 +176,7 @@ function App() {
     var na=appointments.map(function(a){return a.id===apptId?Object.assign({},a,{status:"attended",attended:true}):a;});
     await sSet(KEYS.appts,na); setAppointments(na);
     setClinicalModal(null);
-    var pet=byId(pets,record.petId);
-    var appt=byId(appointments,apptId);
-    var owner=appt?byId(users,appt.ownerId):null;
+    var pet=byId(pets,record.petId); var appt=byId(appointments,apptId); var owner=appt?byId(users,appt.ownerId):null;
     if(owner){await pushNotif(owner.id,"Historia clinica de "+(pet&&pet.name)+" fue registrada","📋");simEmail(owner.email,"Historia clinica actualizada",push);}
     push("Historia guardada - Cita marcada como atendida");
   }
@@ -238,6 +228,7 @@ function App() {
       isVet&&tab==="pets"&&React.createElement(PatientsList,{pets:pets,users:users,records:records,onAdd:function(){setModal({type:"petForm",data:null});},onEdit:function(p){setModal({type:"petForm",data:p});},onDelete:deletePet,onCarnet:function(p){var own=byId(users,p.ownerId);setCarnetModal({pet:p,owner:own});},C:C}),
       isVet&&tab==="records"&&React.createElement(RecordsList,{pets:pets,users:users,records:records,onAdd:function(){setModal({type:"recordForm",data:null});},onEdit:function(r){setModal({type:"recordForm",data:r});},onDelete:deleteRecord,onUpdateRecord:updateRecord,C:C}),
       isVet&&tab==="surgeries"&&React.createElement(SurgeriesList,{surgeries:surgeries,pets:pets,users:users,onAdd:function(){setSurgeryModal({data:null});},onEdit:function(s){setSurgeryModal({data:s});},onDelete:deleteSurgery,C:C}),
+      isVet&&tab==="physio"&&React.createElement(PhysioConstants,{C:C}),
       isVet&&tab==="calendar"&&React.createElement(CalendarView,Object.assign({},calProps)),
       isOwner&&tab==="mypets"&&React.createElement(MyPets,{pets:ownerPets,records:records,surgeries:surgeries,onSelect:function(p){setSelPet(p);setTab("history");},onCarnet:function(p){var own=byId(users,p.ownerId);setCarnetModal({pet:p,owner:own});},C:C}),
       isOwner&&tab==="history"&&React.createElement(OwnerHistory,{pets:ownerPets,records:records,selectedPet:selPet,onSelectPet:setSelPet,onUpdateRecord:updateRecord,C:C}),
